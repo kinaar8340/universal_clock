@@ -201,9 +201,16 @@ html, body {
 .gradio-container {
     max-width: 100% !important;
     width: 100% !important;
-    height: 100vh !important;
+    height: 100dvh !important;
     overflow: hidden !important;
     padding: 0.35rem 0.75rem 0.25rem !important;
+}
+.gradio-container > .main,
+.gradio-container > .main > .wrap,
+.gradio-container .contain {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
 }
 footer, .footer {
     display: none !important;
@@ -223,7 +230,8 @@ footer, .footer {
     opacity: 0.85;
 }
 #main-row {
-    height: calc(100vh - 3.6rem) !important;
+    height: calc(100dvh - 3.6rem) !important;
+    max-height: calc(100dvh - 3.6rem) !important;
     flex-wrap: nowrap !important;
     align-items: stretch !important;
     overflow: hidden !important;
@@ -272,27 +280,94 @@ footer, .footer {
 #col-clock {
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
+    justify-content: stretch !important;
+    align-items: stretch !important;
+    background: #0d1117 !important;
 }
 #col-clock > .form {
+    flex: 1 1 auto !important;
     height: 100% !important;
+    min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+#clock-viewport {
+    flex: 1 1 auto !important;
+    height: 100% !important;
     min-height: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    background: #0d1117 !important;
+}
+#clock-viewport > .form,
+#clock-viewport > .block,
+#clock-viewport .block,
+#clock-viewport .wrap,
+#clock-viewport .form {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    overflow: hidden !important;
 }
 #clock-face {
     flex: 1 1 auto !important;
-    min-height: 0 !important;
     height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
     margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+#clock-face > .wrap,
+#clock-face .wrap {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+#clock-face .icon-button-wrapper,
+#clock-face .image-buttons {
+    flex: 0 0 auto !important;
 }
 #clock-face .image-container,
 #clock-face .image-frame,
-#clock-face > div,
-#clock-face img {
+#clock-face .preview,
+#clock-face [data-testid="image"],
+#clock-face figure {
+    flex: 1 1 auto !important;
     height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    max-height: 100% !important;
+    aspect-ratio: unset !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    background: #0d1117 !important;
+}
+#clock-face img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
     max-height: 100% !important;
     object-fit: contain !important;
+    object-position: center center !important;
 }
 #col-state {
     display: flex !important;
@@ -323,7 +398,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         clock_state = gr.State(_new_clock())
         realtime_running = gr.State(False)
 
-        with gr.Row(elem_id="main-row"):
+        with gr.Row(elem_id="main-row", equal_height=True):
             with gr.Column(scale=4, min_width=260, elem_id="col-controls"):
                 with gr.Column(elem_id="controls-scroll"):
                     gr.Markdown("### Controls")
@@ -371,13 +446,14 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                     show_ticks = gr.Checkbox(value=True, label="Slice lines")
 
             with gr.Column(scale=7, min_width=360, elem_id="col-clock"):
-                clock_image = gr.Image(
-                    label="Egg of Life clock face",
-                    elem_id="clock-face",
-                    interactive=False,
-                    show_label=False,
-                    height="100%",
-                )
+                with gr.Column(elem_id="clock-viewport"):
+                    clock_image = gr.Image(
+                        elem_id="clock-face",
+                        interactive=False,
+                        show_label=False,
+                        container=False,
+                        buttons=["download", "fullscreen"],
+                    )
 
             with gr.Column(scale=3, min_width=220, elem_id="col-state"):
                 state_text = gr.Textbox(
