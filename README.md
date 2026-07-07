@@ -19,6 +19,18 @@ A seven-gear cascading clock based on the **Egg of Life** sacred-geometry patter
 - **Hand** points to the current slice on every gear
 - At **k = 350**, the gear resets to 1 and carries +1 to the next gear
 
+## Live demo (Hugging Face Space)
+
+**https://huggingface.co/spaces/kinaar111/universal_clock**
+
+Interactive Gradio app: batch advance, real-time Earth-rate mode, adjustable speed, slice lines, and hand indicators.
+
+Deploy updates:
+
+```bash
+bash scripts/deploy_hf_space.sh
+```
+
 ## Quick start
 
 ```bash
