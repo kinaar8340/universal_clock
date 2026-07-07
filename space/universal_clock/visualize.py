@@ -256,7 +256,8 @@ def draw_clock(
             f"{clock.total_ticks:,} ticks · "
             + " · ".join(f"G{i}={clock.gears[i-1]}" for i in range(1, 8))
         )
-    ax.set_title(title, color=TEXT_COLOR, fontsize=11, pad=16)
+    if title:
+        ax.set_title(title, color=TEXT_COLOR, fontsize=11, pad=16)
 
 
 def render_clock(
@@ -300,6 +301,7 @@ def render_clock_array(
     show_labels: bool = True,
     show_hands: bool = True,
     slice_lines: int = DEFAULT_SLICE_LINES,
+    title: str = "",
 ) -> np.ndarray:
     """Render the clock to an RGB numpy array for Gradio / web display."""
     fig = render_clock(
@@ -311,6 +313,7 @@ def render_clock_array(
         show_labels=show_labels,
         show_hands=show_hands,
         slice_lines=slice_lines,
+        title=title,
     )
     fig.canvas.draw()
     rgba = np.asarray(fig.canvas.buffer_rgba())

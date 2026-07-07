@@ -39,10 +39,13 @@ def _render(
 ) -> tuple:
     image = render_clock_array(
         clock,
+        figsize=(9, 9),
+        dpi=110,
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
         slice_lines=slice_lines,
+        title="",
     )
     return image, _format_state(clock)
 
@@ -186,11 +189,99 @@ THEME = gr.themes.Base(
     block_background_fill_dark="#161b22",
     block_border_width="1px",
     block_title_text_weight="600",
+    block_padding="6px",
+    layout_gap="8px",
 )
 
 CUSTOM_CSS = """
-.gradio-container { max-width: 1180px !important; }
-#clock-face { min-height: 520px; }
+html, body {
+    height: 100% !important;
+    overflow: hidden !important;
+}
+.gradio-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    padding: 0.35rem 0.75rem 0.25rem !important;
+}
+footer, .footer {
+    display: none !important;
+}
+#app-header {
+    flex-shrink: 0;
+    margin-bottom: 0 !important;
+}
+#app-header h1 {
+    font-size: 1.15rem !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
+}
+#app-header p {
+    font-size: 0.78rem !important;
+    margin: 0.1rem 0 0 !important;
+    opacity: 0.85;
+}
+#main-row {
+    height: calc(100vh - 3.6rem) !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+    gap: 0.65rem !important;
+}
+#col-controls, #col-clock, #col-state {
+    height: 100% !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+}
+#col-controls {
+    padding-right: 0.15rem !important;
+}
+#col-controls .block {
+    margin-bottom: 0.35rem !important;
+}
+#col-controls h3 {
+    font-size: 0.9rem !important;
+    margin: 0.35rem 0 0.15rem !important;
+}
+#col-clock {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+#col-clock > .form {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+}
+#clock-face {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    margin: 0 !important;
+}
+#clock-face .image-container,
+#clock-face .image-frame,
+#clock-face > div,
+#clock-face img {
+    height: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+}
+#col-state {
+    display: flex !important;
+    flex-direction: column !important;
+}
+#gear-state {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+}
+#gear-state textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+}
 """
 
 
@@ -199,16 +290,16 @@ def build_demo() -> gr.Blocks:
         gr.Markdown(
             f"""
 # Universal π Clock · Egg of Life
-Seven-gear cascading π clock — sacred geometry timekeeper with carry-over hierarchy.
-[GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_URL})
-            """
+Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_URL})
+            """,
+            elem_id="app-header",
         )
 
         clock_state = gr.State(_new_clock())
         realtime_running = gr.State(False)
 
-        with gr.Row():
-            with gr.Column(scale=1, min_width=320):
+        with gr.Row(elem_id="main-row"):
+            with gr.Column(scale=4, min_width=260, elem_id="col-controls"):
                 gr.Markdown("### Controls")
                 ticks = gr.Slider(
                     minimum=0,
@@ -218,20 +309,20 @@ Seven-gear cascading π clock — sacred geometry timekeeper with carry-over hie
                     label="Advance ticks (batch)",
                 )
                 with gr.Row():
-                    advance_btn = gr.Button("Advance", variant="primary")
-                    reset_btn = gr.Button("Reset")
+                    advance_btn = gr.Button("Advance", variant="primary", scale=2)
+                    reset_btn = gr.Button("Reset", scale=1)
                 preset = gr.Radio(
                     choices=[str(v) for v in PRESET_TICKS],
                     value="5000",
                     label="Presets",
                 )
-                gr.Markdown("### Real-time mode")
+                gr.Markdown("### Real-time")
                 rev_seconds = gr.Slider(
                     minimum=3600,
                     maximum=200000,
                     value=EARTH_DAY_SECONDS,
                     step=3600,
-                    label="Gear 1 revolution (seconds)",
+                    label="Gear 1 revolution (s)",
                 )
                 speed = gr.Slider(
                     minimum=1,
@@ -252,13 +343,24 @@ Seven-gear cascading π clock — sacred geometry timekeeper with carry-over hie
                 show_hands = gr.Checkbox(value=True, label="Hand indicators")
                 show_labels = gr.Checkbox(value=True, label="k/π labels")
                 show_ticks = gr.Checkbox(value=True, label="Slice lines")
-            with gr.Column(scale=2):
+
+            with gr.Column(scale=7, min_width=360, elem_id="col-clock"):
                 clock_image = gr.Image(
                     label="Egg of Life clock face",
                     elem_id="clock-face",
                     interactive=False,
+                    show_label=False,
+                    height="100%",
                 )
-                state_text = gr.Textbox(label="Gear state", lines=9, max_lines=12)
+
+            with gr.Column(scale=3, min_width=220, elem_id="col-state"):
+                state_text = gr.Textbox(
+                    label="Gear state",
+                    elem_id="gear-state",
+                    lines=10,
+                    max_lines=10,
+                    interactive=False,
+                )
 
         timer = gr.Timer(0.15, active=False)
 
