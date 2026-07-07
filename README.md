@@ -140,4 +140,4 @@ The visual language stays identical — only the tick interval changes.
 
 ## License
 
-MIT (or your preferred license — add as needed).
+MIT — see [LICENSE](LICENSE).
