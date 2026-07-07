@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from universal_clock import UniversalPiClock, render_clock
 from universal_clock.clock import EARTH_DAY_SECONDS
 from universal_clock.realtime import run_realtime
+from universal_clock.visualize import DEFAULT_SLICE_LINES
 
 DEFAULT_OUTPUT = Path(__file__).resolve().parent / "output" / "egg_of_life_clock.png"
 
@@ -63,7 +64,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-ticks",
         action="store_true",
-        help="Hide radial slice tick marks",
+        help="Hide radial slice lines",
+    )
+    parser.add_argument(
+        "--slice-lines",
+        type=int,
+        default=DEFAULT_SLICE_LINES,
+        metavar="N",
+        help=f"Radial slice lines per circle (default: {DEFAULT_SLICE_LINES}; must divide 350)",
     )
     parser.add_argument(
         "--no-labels",
@@ -88,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     show_hands = not args.no_hands
     show_ticks = not args.no_ticks
     show_labels = not args.no_labels
+    slice_lines = args.slice_lines
 
     if args.earth_rate:
         sec_per_tick = clock.set_earth_rate(args.rev_seconds)
@@ -96,7 +105,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Gear 1 revolution: {args.rev_seconds:,.0f} s")
         print(f"Tick interval: {sec_per_tick:.4f} s  (effective {effective:.6f} s @ {args.speed}×)")
         print("Close the plot window or press Ctrl+C to stop.")
-        run_realtime(clock, speed_multiplier=args.speed)
+        run_realtime(
+            clock,
+            speed_multiplier=args.speed,
+            slice_lines=slice_lines,
+        )
         _print_state(clock)
         return 0
 
@@ -111,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
+        slice_lines=slice_lines,
     )
     plt.close(fig)
 
@@ -125,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
             frames=args.animate,
             output=gif_path,
             show_hands=show_hands,
+            slice_lines=slice_lines,
         )
         print(f"GIF:   {gif_path}")
 

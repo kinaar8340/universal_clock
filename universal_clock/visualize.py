@@ -25,6 +25,7 @@ BG_COLOR = "#0d1117"
 OUTLINE_COLOR = "#3d4f5f"
 LABEL_COLOR = "#8b9cb3"
 TEXT_COLOR = "#e6edf3"
+DEFAULT_SLICE_LINES = 70
 
 
 def egg_of_life_positions(
@@ -105,17 +106,29 @@ def _draw_filled_slices(
     ax.add_patch(wedge)
 
 
+def slice_line_step(num_lines: int = DEFAULT_SLICE_LINES) -> int:
+    """Slices between radial lines (350 slices / 70 lines = every 5 slices)."""
+    if num_lines <= 0 or SLICES_PER_GEAR % num_lines != 0:
+        raise ValueError(
+            f"slice_lines must divide {SLICES_PER_GEAR} evenly; got {num_lines}"
+        )
+    return SLICES_PER_GEAR // num_lines
+
+
 def _draw_slice_ticks(
     ax: plt.Axes,
     center: tuple[float, float],
     radius: float,
     *,
-    every: int = 35,
+    num_lines: int = DEFAULT_SLICE_LINES,
 ) -> None:
-    """Sparse radial tick marks (every N slices) to suggest 350 divisions."""
+    """Radial slice lines around the circumference (default: 70 of 350 slices)."""
     cx, cy = center
+    step = slice_line_step(num_lines)
     slice_rad = 2.0 * math.pi / SLICES_PER_GEAR
-    for i in range(0, SLICES_PER_GEAR, every):
+    lw = 0.28 if num_lines >= 70 else 0.35
+    alpha = 0.38 if num_lines >= 70 else 0.45
+    for i in range(0, SLICES_PER_GEAR, step):
         # 12 o'clock clockwise
         theta = math.pi / 2.0 - i * slice_rad
         inner = radius * 0.96
@@ -123,8 +136,8 @@ def _draw_slice_ticks(
             [cx + inner * math.cos(theta), cx + radius * math.cos(theta)],
             [cy + inner * math.sin(theta), cy + radius * math.sin(theta)],
             color=OUTLINE_COLOR,
-            lw=0.35,
-            alpha=0.45,
+            lw=lw,
+            alpha=alpha,
             zorder=3,
         )
 
@@ -167,7 +180,7 @@ def _draw_gear_circle(
     show_labels: bool = True,
     show_hands: bool = True,
     label_every: int = 50,
-    tick_every: int = 35,
+    slice_lines: int = DEFAULT_SLICE_LINES,
 ) -> None:
     cx, cy = center
     _draw_filled_slices(ax, (cx, cy), radius, k, color)
@@ -183,7 +196,7 @@ def _draw_gear_circle(
     )
     ax.add_patch(outline)
     if show_ticks:
-        _draw_slice_ticks(ax, (cx, cy), radius, every=tick_every)
+        _draw_slice_ticks(ax, (cx, cy), radius, num_lines=slice_lines)
     if show_labels:
         _draw_slice_labels(ax, (cx, cy), radius, every=label_every)
     v = k / math.pi
@@ -208,6 +221,7 @@ def draw_clock(
     show_ticks: bool = True,
     show_labels: bool = True,
     show_hands: bool = True,
+    slice_lines: int = DEFAULT_SLICE_LINES,
     title: str | None = None,
 ) -> None:
     """Draw the Egg of Life clock face onto an existing axes."""
@@ -233,6 +247,7 @@ def draw_clock(
             show_ticks=show_ticks,
             show_labels=show_labels,
             show_hands=show_hands,
+            slice_lines=slice_lines,
         )
 
     if title is None:
@@ -254,6 +269,7 @@ def render_clock(
     show_ticks: bool = True,
     show_labels: bool = True,
     show_hands: bool = True,
+    slice_lines: int = DEFAULT_SLICE_LINES,
     title: str | None = None,
 ) -> plt.Figure:
     """Render the Egg of Life clock face for the current clock state."""
@@ -265,6 +281,7 @@ def render_clock(
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
+        slice_lines=slice_lines,
         title=title,
     )
     fig.tight_layout()

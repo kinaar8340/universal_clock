@@ -107,7 +107,8 @@ while True:
 | `--output PATH` | PNG output path (batch mode) |
 | `--animate N` | Save GIF with N frames (batch mode) |
 | `--no-hands` | Hide hand indicators |
-| `--no-ticks` | Hide radial slice tick marks |
+| `--no-ticks` | Hide radial slice lines |
+| `--slice-lines N` | Radial lines per circle (default 70; must divide 350) |
 | `--no-labels` | Hide k/π circumference labels |
 
 ## Project structure

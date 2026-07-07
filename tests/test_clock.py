@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from universal_clock import UniversalPiClock
 from universal_clock.clock import EARTH_DAY_SECONDS, SLICES_PER_GEAR
+from universal_clock.visualize import DEFAULT_SLICE_LINES, slice_line_step
 
 
 def test_initial_state():
@@ -59,6 +60,12 @@ def test_tick_realtime_waits():
         clock.last_tick_time = t0
         assert clock.tick_realtime() is True
         assert clock.gears[0] == 2
+
+
+def test_slice_line_step_default():
+    assert DEFAULT_SLICE_LINES == 70
+    assert slice_line_step(70) == 5
+    assert slice_line_step(350) == 1
 
 
 def test_tick_realtime_speed_multiplier():

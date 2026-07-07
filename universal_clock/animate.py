@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 
 from .clock import UniversalPiClock
-from .visualize import render_clock
+from .visualize import DEFAULT_SLICE_LINES, draw_clock
 
 
 def save_animation_gif(
@@ -19,6 +19,7 @@ def save_animation_gif(
     output: Path | str,
     fps: int = 10,
     show_hands: bool = True,
+    slice_lines: int = DEFAULT_SLICE_LINES,
 ) -> Path:
     """Advance the clock and save an animated GIF."""
     clock = UniversalPiClock()
@@ -30,11 +31,21 @@ def save_animation_gif(
 
     def update(_frame: int) -> None:
         clock.tick(ticks_per_frame)
-        from .visualize import draw_clock
+        draw_clock(
+            ax,
+            clock,
+            show_labels=False,
+            show_hands=show_hands,
+            slice_lines=slice_lines,
+        )
 
-        draw_clock(ax, clock, show_labels=False, show_hands=show_hands)
-
-    draw_clock(ax, clock, show_labels=False, show_hands=show_hands)
+    draw_clock(
+        ax,
+        clock,
+        show_labels=False,
+        show_hands=show_hands,
+        slice_lines=slice_lines,
+    )
 
     anim = FuncAnimation(fig, update, frames=frames, interval=1000 / fps, blit=False)
     writer = PillowWriter(fps=fps)

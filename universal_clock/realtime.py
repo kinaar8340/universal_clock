@@ -7,7 +7,7 @@ import time
 import matplotlib.pyplot as plt
 
 from .clock import UniversalPiClock
-from .visualize import BG_COLOR, draw_clock
+from .visualize import BG_COLOR, DEFAULT_SLICE_LINES, draw_clock
 
 
 def run_realtime(
@@ -16,6 +16,7 @@ def run_realtime(
     speed_multiplier: float = 1.0,
     sleep_seconds: float = 0.01,
     figsize: tuple[float, float] = (10, 10),
+    slice_lines: int = DEFAULT_SLICE_LINES,
 ) -> None:
     """Run an interactive matplotlib loop driven by tick_realtime()."""
     plt.ion()
@@ -23,7 +24,7 @@ def run_realtime(
     try:
         while plt.fignum_exists(fig.number):
             if clock.tick_realtime(speed_multiplier=speed_multiplier):
-                draw_clock(ax, clock)
+                draw_clock(ax, clock, slice_lines=slice_lines)
                 fig.canvas.draw_idle()
             plt.pause(sleep_seconds)
             if not plt.get_fignums():
