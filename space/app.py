@@ -235,12 +235,37 @@ footer, .footer {
     min-height: 0 !important;
 }
 #col-controls {
-    padding-right: 0.15rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding-right: 0 !important;
 }
-#col-controls .block {
+#controls-scroll {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-right: 0.35rem !important;
+    scrollbar-width: thin;
+    scrollbar-color: #3d4f5f #161b22;
+}
+#controls-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+#controls-scroll::-webkit-scrollbar-track {
+    background: #161b22;
+    border-radius: 4px;
+}
+#controls-scroll::-webkit-scrollbar-thumb {
+    background: #3d4f5f;
+    border-radius: 4px;
+}
+#controls-scroll::-webkit-scrollbar-thumb:hover {
+    background: #5a6d7d;
+}
+#controls-scroll .block {
     margin-bottom: 0.35rem !important;
 }
-#col-controls h3 {
+#controls-scroll h3 {
     font-size: 0.9rem !important;
     margin: 0.35rem 0 0.15rem !important;
 }
@@ -300,49 +325,50 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
 
         with gr.Row(elem_id="main-row"):
             with gr.Column(scale=4, min_width=260, elem_id="col-controls"):
-                gr.Markdown("### Controls")
-                ticks = gr.Slider(
-                    minimum=0,
-                    maximum=500000,
-                    value=5000,
-                    step=1000,
-                    label="Advance ticks (batch)",
-                )
-                with gr.Row():
-                    advance_btn = gr.Button("Advance", variant="primary", scale=2)
-                    reset_btn = gr.Button("Reset", scale=1)
-                preset = gr.Radio(
-                    choices=[str(v) for v in PRESET_TICKS],
-                    value="5000",
-                    label="Presets",
-                )
-                gr.Markdown("### Real-time")
-                rev_seconds = gr.Slider(
-                    minimum=3600,
-                    maximum=200000,
-                    value=EARTH_DAY_SECONDS,
-                    step=3600,
-                    label="Gear 1 revolution (s)",
-                )
-                speed = gr.Slider(
-                    minimum=1,
-                    maximum=10000,
-                    value=1000,
-                    step=10,
-                    label="Speed multiplier",
-                )
-                with gr.Row():
-                    start_rt = gr.Button("Start real-time", variant="secondary")
-                    stop_rt = gr.Button("Stop real-time")
-                gr.Markdown("### Display")
-                slice_lines = gr.Dropdown(
-                    choices=SLICE_LINE_CHOICES,
-                    value=DEFAULT_SLICE_LINES,
-                    label="Radial slice lines",
-                )
-                show_hands = gr.Checkbox(value=True, label="Hand indicators")
-                show_labels = gr.Checkbox(value=True, label="k/π labels")
-                show_ticks = gr.Checkbox(value=True, label="Slice lines")
+                with gr.Column(elem_id="controls-scroll"):
+                    gr.Markdown("### Controls")
+                    ticks = gr.Slider(
+                        minimum=0,
+                        maximum=500000,
+                        value=5000,
+                        step=1000,
+                        label="Advance ticks (batch)",
+                    )
+                    with gr.Row():
+                        advance_btn = gr.Button("Advance", variant="primary", scale=2)
+                        reset_btn = gr.Button("Reset", scale=1)
+                    preset = gr.Radio(
+                        choices=[str(v) for v in PRESET_TICKS],
+                        value="5000",
+                        label="Presets",
+                    )
+                    gr.Markdown("### Real-time")
+                    rev_seconds = gr.Slider(
+                        minimum=3600,
+                        maximum=200000,
+                        value=EARTH_DAY_SECONDS,
+                        step=3600,
+                        label="Gear 1 revolution (s)",
+                    )
+                    speed = gr.Slider(
+                        minimum=1,
+                        maximum=10000,
+                        value=1000,
+                        step=10,
+                        label="Speed multiplier",
+                    )
+                    with gr.Row():
+                        start_rt = gr.Button("Start real-time", variant="secondary")
+                        stop_rt = gr.Button("Stop real-time")
+                    gr.Markdown("### Display")
+                    slice_lines = gr.Dropdown(
+                        choices=SLICE_LINE_CHOICES,
+                        value=DEFAULT_SLICE_LINES,
+                        label="Radial slice lines",
+                    )
+                    show_hands = gr.Checkbox(value=True, label="Hand indicators")
+                    show_labels = gr.Checkbox(value=True, label="k/π labels")
+                    show_ticks = gr.Checkbox(value=True, label="Slice lines")
 
             with gr.Column(scale=7, min_width=360, elem_id="col-clock"):
                 clock_image = gr.Image(
