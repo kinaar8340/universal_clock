@@ -18,6 +18,8 @@ HF_SPACE_URL = "https://huggingface.co/spaces/kinaar111/universal_clock"
 
 SLICE_LINE_CHOICES = [10, 35, 70, 175, 350]
 PRESET_TICKS = [0, 1000, 5000, 50000, 500000]
+# 1080p desktop: ~860px after app header (tuned for 1920×1080 HF iframe)
+PANEL_HEIGHT = 860
 
 
 def _format_state(clock: UniversalPiClock) -> str:
@@ -39,8 +41,8 @@ def _render(
 ) -> tuple:
     image = render_clock_array(
         clock,
-        figsize=(9, 9),
-        dpi=110,
+        figsize=(10, 10),
+        dpi=100,
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
@@ -193,195 +195,149 @@ THEME = gr.themes.Base(
     layout_gap="8px",
 )
 
-CUSTOM_CSS = """
-html, body {
+CUSTOM_CSS = f"""
+:root {{
+    --panel-h: clamp(560px, calc(100vh - 7.5rem), {PANEL_HEIGHT}px);
+}}
+html, body, #root, .gradio-container {{
     height: 100% !important;
+    max-height: 100vh !important;
     overflow: hidden !important;
-}
-.gradio-container {
+}}
+.gradio-container {{
     max-width: 100% !important;
     width: 100% !important;
-    height: 100dvh !important;
-    overflow: hidden !important;
     padding: 0.35rem 0.75rem 0.25rem !important;
-}
+}}
 .gradio-container > .main,
-.gradio-container > .main > .wrap,
-.gradio-container .contain {
+.gradio-container > .main > .wrap {{
     height: 100% !important;
-    min-height: 0 !important;
+    max-height: 100vh !important;
     overflow: hidden !important;
-}
-footer, .footer {
+}}
+footer, .footer {{
     display: none !important;
-}
-#app-header {
+}}
+#app-header {{
     flex-shrink: 0;
     margin-bottom: 0 !important;
-}
-#app-header h1 {
+}}
+#app-header h1 {{
     font-size: 1.15rem !important;
     margin: 0 !important;
     line-height: 1.25 !important;
-}
-#app-header p {
+}}
+#app-header p {{
     font-size: 0.78rem !important;
     margin: 0.1rem 0 0 !important;
     opacity: 0.85;
-}
-#main-row {
-    height: calc(100dvh - 3.6rem) !important;
-    max-height: calc(100dvh - 3.6rem) !important;
+}}
+#main-row {{
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
+    min-height: var(--panel-h) !important;
     flex-wrap: nowrap !important;
     align-items: stretch !important;
     overflow: hidden !important;
     gap: 0.65rem !important;
-}
-#col-controls, #col-clock, #col-state {
-    height: 100% !important;
+}}
+#col-controls, #col-clock, #col-state {{
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
     overflow: hidden !important;
-    min-height: 0 !important;
-}
-#col-controls {
+}}
+#col-controls {{
     display: flex !important;
     flex-direction: column !important;
     padding-right: 0 !important;
-}
-#controls-scroll {
+}}
+#controls-scroll {{
     flex: 1 1 auto !important;
-    min-height: 0 !important;
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     padding-right: 0.35rem !important;
     scrollbar-width: thin;
     scrollbar-color: #3d4f5f #161b22;
-}
-#controls-scroll::-webkit-scrollbar {
+}}
+#controls-scroll::-webkit-scrollbar {{
     width: 8px;
-}
-#controls-scroll::-webkit-scrollbar-track {
+}}
+#controls-scroll::-webkit-scrollbar-track {{
     background: #161b22;
     border-radius: 4px;
-}
-#controls-scroll::-webkit-scrollbar-thumb {
+}}
+#controls-scroll::-webkit-scrollbar-thumb {{
     background: #3d4f5f;
     border-radius: 4px;
-}
-#controls-scroll::-webkit-scrollbar-thumb:hover {
+}}
+#controls-scroll::-webkit-scrollbar-thumb:hover {{
     background: #5a6d7d;
-}
-#controls-scroll .block {
+}}
+#controls-scroll .block {{
     margin-bottom: 0.35rem !important;
-}
-#controls-scroll h3 {
+}}
+#controls-scroll h3 {{
     font-size: 0.9rem !important;
     margin: 0.35rem 0 0.15rem !important;
-}
-#col-clock {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: stretch !important;
-    align-items: stretch !important;
+}}
+#col-clock {{
     background: #0d1117 !important;
-}
-#col-clock > .form {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#clock-viewport {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-    background: #0d1117 !important;
-}
+}}
+#clock-viewport,
 #clock-viewport > .form,
-#clock-viewport > .block,
-#clock-viewport .block,
-#clock-viewport .wrap,
-#clock-viewport .form {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    width: 100% !important;
+#clock-viewport > .block {{
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
     margin: 0 !important;
     padding: 0 !important;
-    border: none !important;
-    background: transparent !important;
     overflow: hidden !important;
-}
-#clock-face {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    width: 100% !important;
+    background: #0d1117 !important;
+}}
+#clock-face {{
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
     margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-}
-#clock-face > .wrap,
-#clock-face .wrap {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-}
-#clock-face .icon-button-wrapper,
-#clock-face .image-buttons {
-    flex: 0 0 auto !important;
-}
+}}
 #clock-face .image-container,
 #clock-face .image-frame,
-#clock-face .preview,
-#clock-face [data-testid="image"],
-#clock-face figure {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
+#clock-face [data-testid="image"] {{
+    height: calc(var(--panel-h) - 2.5rem) !important;
+    max-height: calc(var(--panel-h) - 2.5rem) !important;
+    min-height: calc(var(--panel-h) - 2.5rem) !important;
     width: 100% !important;
-    max-height: 100% !important;
-    aspect-ratio: unset !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: hidden !important;
     background: #0d1117 !important;
-}
-#clock-face img {
+}}
+#clock-face img {{
     width: 100% !important;
     height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
+    max-height: calc(var(--panel-h) - 2.5rem) !important;
     object-fit: contain !important;
     object-position: center center !important;
-}
-#col-state {
+}}
+#col-state {{
     display: flex !important;
     flex-direction: column !important;
-}
-#gear-state {
-    flex: 0 0 auto !important;
+}}
+#gear-state {{
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
     margin-top: 0 !important;
-}
-#gear-state textarea {
+}}
+#gear-state textarea {{
+    height: calc(var(--panel-h) - 2.5rem) !important;
+    max-height: calc(var(--panel-h) - 2.5rem) !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-    font-size: 0.78rem !important;
+    font-size: 0.82rem !important;
     line-height: 1.35 !important;
-}
+    overflow-y: auto !important;
+}}
+@media (min-width: 1600px) and (min-height: 900px) {{
+    :root {{
+        --panel-h: {PANEL_HEIGHT}px;
+    }}
+}}
 """
 
 
@@ -398,8 +354,8 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         clock_state = gr.State(_new_clock())
         realtime_running = gr.State(False)
 
-        with gr.Row(elem_id="main-row", equal_height=True):
-            with gr.Column(scale=4, min_width=260, elem_id="col-controls"):
+        with gr.Row(elem_id="main-row", equal_height=True, height=PANEL_HEIGHT):
+            with gr.Column(scale=3, min_width=300, elem_id="col-controls"):
                 with gr.Column(elem_id="controls-scroll"):
                     gr.Markdown("### Controls")
                     ticks = gr.Slider(
@@ -445,22 +401,22 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                     show_labels = gr.Checkbox(value=True, label="k/π labels")
                     show_ticks = gr.Checkbox(value=True, label="Slice lines")
 
-            with gr.Column(scale=7, min_width=360, elem_id="col-clock"):
+            with gr.Column(scale=8, min_width=520, elem_id="col-clock"):
                 with gr.Column(elem_id="clock-viewport"):
                     clock_image = gr.Image(
                         elem_id="clock-face",
                         interactive=False,
                         show_label=False,
-                        container=False,
+                        height=PANEL_HEIGHT - 40,
                         buttons=["download", "fullscreen"],
                     )
 
-            with gr.Column(scale=3, min_width=220, elem_id="col-state"):
+            with gr.Column(scale=3, min_width=280, elem_id="col-state"):
                 state_text = gr.Textbox(
                     label="Gear state",
                     elem_id="gear-state",
-                    lines=10,
-                    max_lines=10,
+                    lines=14,
+                    max_lines=14,
                     interactive=False,
                 )
 
