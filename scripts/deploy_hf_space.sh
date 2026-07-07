@@ -26,7 +26,7 @@ echo "=== 3. Git push origin main ==="
 git push origin main
 
 echo "=== 4. Deploy to HF Space ==="
-# Uses active hf auth token (e.g. universal_clock_deploy via: hf auth switch)
+# Uses the active hf auth token (see README “HF deploy token”)
 hf upload kinaar111/universal_clock space \
   --type space \
   --commit-message "$MSG" \

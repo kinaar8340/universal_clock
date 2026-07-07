@@ -31,6 +31,40 @@ Deploy updates:
 bash scripts/deploy_hf_space.sh
 ```
 
+### HF deploy token
+
+`hf auth login` does **not** take `--token-name`. Names come from Hugging Face when you store a token.
+
+1. Add your `universal_clock_deploy` token (paste the `hf_…` value from [token settings](https://huggingface.co/settings/tokens)):
+
+```bash
+hf auth login --token hf_YOUR_TOKEN_HERE --force
+```
+
+2. Confirm it appears in the store:
+
+```bash
+hf auth list
+```
+
+3. If you have multiple tokens, switch to the deploy token:
+
+```bash
+hf auth switch --token-name universal_clock_deploy
+```
+
+4. Deploy:
+
+```bash
+bash scripts/deploy_hf_space.sh
+```
+
+One-off deploy without switching the default token:
+
+```bash
+HF_TOKEN=hf_YOUR_TOKEN_HERE hf upload kinaar111/universal_clock space --type space
+```
+
 ## Quick start
 
 ```bash
