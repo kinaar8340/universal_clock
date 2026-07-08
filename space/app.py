@@ -37,8 +37,8 @@ DEMO_SCENES[PETAL_SCENE] = (
     -1,
     "60s loop: 18 frames · G1 full 350/π revolution · color G2→G7.",
 )
-# cpu-basic: matplotlib render is costly; 2 Hz is enough for 3.33s frames.
-PETAL_RENDER_INTERVAL = 0.5
+# cpu-basic: render only when the petal frame changes (~3.33s); 1 Hz poll is enough.
+PETAL_RENDER_INTERVAL = 1.0
 RENDER_DPI = 90
 SCENE_CHOICES = list(DEMO_SCENES.keys())
 DEFAULT_DEMO = PETAL_SCENE
@@ -136,23 +136,31 @@ def load_demo_scene(
     return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
 
 
+_petal_last_visual_key: tuple | None = None
+
+
+def _reset_petal_visual_cache() -> None:
+    global _petal_last_visual_key
+    _petal_last_visual_key = None
+
+
 def start_petal_sequence(
     slice_lines: int,
     overlays: list[str],
 ) -> tuple:
     """Reset and begin the 60s petal loop (1 tick/s, flower frames, color G2→G7)."""
+    global _petal_last_visual_key
+    _reset_petal_visual_cache()
     clock = _new_clock()
     elapsed = 0.0
-    return (
-        clock,
-        True,
-        time.time(),
-        *_render(
-            clock,
-            **_display_kwargs(slice_lines, overlays),
-            petal_elapsed=elapsed,
-        ),
+    display = _display_kwargs(slice_lines, overlays)
+    image, state = _render(clock, **display, petal_elapsed=elapsed)
+    _petal_last_visual_key = (
+        petal_frame_index(elapsed),
+        slice_lines,
+        tuple(overlays),
     )
+    return clock, True, time.time(), image, state
 
 
 def petal_sequence_tick(
@@ -162,9 +170,11 @@ def petal_sequence_tick(
     slice_lines: int,
     overlays: list[str],
 ) -> tuple:
+    global _petal_last_visual_key
     if clock is None:
         clock = _new_clock()
     if not running:
+        _reset_petal_visual_cache()
         return (
             clock,
             running,
@@ -181,16 +191,22 @@ def petal_sequence_tick(
         clock = _new_clock()
     elif target_ticks > clock.total_ticks:
         clock.tick(target_ticks - clock.total_ticks)
-    return (
-        clock,
-        running,
-        epoch,
-        *_render(
-            clock,
-            **_display_kwargs(slice_lines, overlays),
-            petal_elapsed=elapsed,
-        ),
+    display = _display_kwargs(slice_lines, overlays)
+    state = _format_state(clock, petal_elapsed=elapsed)
+    visual_key = (
+        petal_frame_index(elapsed),
+        slice_lines,
+        tuple(overlays),
     )
+    if visual_key == _petal_last_visual_key:
+        return clock, running, epoch, gr.skip(), state
+    _petal_last_visual_key = visual_key
+    image, _ = _render(
+        clock,
+        **display,
+        petal_elapsed=elapsed,
+    )
+    return clock, running, epoch, image, state
 
 
 def demo_hint(scene: str) -> str:
@@ -591,14 +607,6 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
             clock, img, st = load_demo_scene(scene, *display)
             return clock, False, 0.0, img, st
 
-        def _on_app_load(scene, *display):
-            """Lightweight startup — defer matplotlib render to first timer tick."""
-            if scene == PETAL_SCENE:
-                clock = _new_clock()
-                state = _format_state(clock, petal_elapsed=0.0)
-                return clock, True, time.time(), gr.skip(), state
-            return _load_scene_or_petal(scene, *display)
-
         reload_demo_btn.click(
             _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
@@ -671,7 +679,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         )
 
         demo.load(
-            _on_app_load,
+            _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
             outputs=petal_outputs,
         ).then(
