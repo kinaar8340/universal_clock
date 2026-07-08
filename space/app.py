@@ -20,6 +20,8 @@ SLICE_LINE_CHOICES = [10, 35, 70, 175, 350]
 PRESET_TICKS = [0, 1000, 5000, 50000, 500000]
 # 1080p desktop: ~860px after app header (tuned for 1920×1080 HF iframe)
 PANEL_HEIGHT = 860
+# Tight matplotlib bounds — Egg of Life fills the center viewport
+CLOCK_VIEWPORT_SPAN = 2.12
 
 
 def _format_state(clock: UniversalPiClock) -> str:
@@ -41,13 +43,15 @@ def _render(
 ) -> tuple:
     image = render_clock_array(
         clock,
-        figsize=(10, 10),
-        dpi=100,
+        figsize=(11, 11),
+        dpi=110,
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
         slice_lines=slice_lines,
         title="",
+        viewport_span=CLOCK_VIEWPORT_SPAN,
+        tight_margins=True,
     )
     return image, _format_state(clock)
 
@@ -250,6 +254,21 @@ footer, .footer {{
     display: flex !important;
     flex-direction: column !important;
     padding-right: 0 !important;
+    max-width: 300px !important;
+    flex: 0 0 300px !important;
+}}
+#col-controls .block,
+#col-controls label,
+#col-controls span {{
+    font-size: 0.82rem !important;
+}}
+#col-controls input[type="number"] {{
+    font-size: 0.82rem !important;
+    padding: 2px 4px !important;
+}}
+#col-controls .gr-button {{
+    font-size: 0.82rem !important;
+    padding: 4px 8px !important;
 }}
 #controls-scroll {{
     flex: 1 1 auto !important;
@@ -283,6 +302,8 @@ footer, .footer {{
     margin: 0.35rem 0 0.15rem !important;
 }}
 #col-clock {{
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
     background: #0d1117 !important;
 }}
 #clock-viewport,
@@ -303,22 +324,25 @@ footer, .footer {{
 #clock-face .image-container,
 #clock-face .image-frame,
 #clock-face [data-testid="image"] {{
-    height: calc(var(--panel-h) - 2.5rem) !important;
-    max-height: calc(var(--panel-h) - 2.5rem) !important;
-    min-height: calc(var(--panel-h) - 2.5rem) !important;
+    height: var(--panel-h) !important;
+    max-height: var(--panel-h) !important;
+    min-height: var(--panel-h) !important;
     width: 100% !important;
     background: #0d1117 !important;
+    padding: 0 !important;
 }}
 #clock-face img {{
     width: 100% !important;
     height: 100% !important;
-    max-height: calc(var(--panel-h) - 2.5rem) !important;
+    max-height: var(--panel-h) !important;
     object-fit: contain !important;
     object-position: center center !important;
 }}
 #col-state {{
     display: flex !important;
     flex-direction: column !important;
+    max-width: 340px !important;
+    flex: 0 0 340px !important;
 }}
 #gear-state {{
     height: var(--panel-h) !important;
@@ -355,7 +379,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         realtime_running = gr.State(False)
 
         with gr.Row(elem_id="main-row", equal_height=True, height=PANEL_HEIGHT):
-            with gr.Column(scale=3, min_width=300, elem_id="col-controls"):
+            with gr.Column(scale=2, min_width=240, elem_id="col-controls"):
                 with gr.Column(elem_id="controls-scroll"):
                     gr.Markdown("### Controls")
                     ticks = gr.Slider(
@@ -401,14 +425,14 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                     show_labels = gr.Checkbox(value=True, label="k/π labels")
                     show_ticks = gr.Checkbox(value=True, label="Slice lines")
 
-            with gr.Column(scale=8, min_width=520, elem_id="col-clock"):
+            with gr.Column(scale=11, min_width=640, elem_id="col-clock"):
                 with gr.Column(elem_id="clock-viewport"):
                     clock_image = gr.Image(
                         elem_id="clock-face",
                         interactive=False,
                         show_label=False,
-                        height=PANEL_HEIGHT - 40,
-                        buttons=["download", "fullscreen"],
+                        height=PANEL_HEIGHT,
+                        buttons=[],
                     )
 
             with gr.Column(scale=3, min_width=280, elem_id="col-state"):

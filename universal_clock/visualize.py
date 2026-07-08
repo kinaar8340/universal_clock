@@ -223,10 +223,11 @@ def draw_clock(
     show_hands: bool = True,
     slice_lines: int = DEFAULT_SLICE_LINES,
     title: str | None = None,
+    viewport_span: float | None = None,
 ) -> None:
     """Draw the Egg of Life clock face onto an existing axes."""
     centers = egg_of_life_positions(circle_radius)
-    span = circle_radius * 3.6
+    span = circle_radius * (viewport_span if viewport_span is not None else 3.6)
 
     ax.clear()
     ax.set_facecolor(BG_COLOR)
@@ -272,6 +273,8 @@ def render_clock(
     show_hands: bool = True,
     slice_lines: int = DEFAULT_SLICE_LINES,
     title: str | None = None,
+    viewport_span: float | None = None,
+    tight_margins: bool = False,
 ) -> plt.Figure:
     """Render the Egg of Life clock face for the current clock state."""
     fig, ax = plt.subplots(figsize=figsize, facecolor=BG_COLOR)
@@ -284,8 +287,12 @@ def render_clock(
         show_hands=show_hands,
         slice_lines=slice_lines,
         title=title,
+        viewport_span=viewport_span,
     )
-    fig.tight_layout()
+    if tight_margins:
+        fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
+    else:
+        fig.tight_layout()
     if output is not None:
         fig.savefig(output, dpi=dpi, facecolor=BG_COLOR, bbox_inches="tight")
     return fig
@@ -302,6 +309,8 @@ def render_clock_array(
     show_hands: bool = True,
     slice_lines: int = DEFAULT_SLICE_LINES,
     title: str = "",
+    viewport_span: float | None = None,
+    tight_margins: bool = False,
 ) -> np.ndarray:
     """Render the clock to an RGB numpy array for Gradio / web display."""
     fig = render_clock(
@@ -314,6 +323,8 @@ def render_clock_array(
         show_hands=show_hands,
         slice_lines=slice_lines,
         title=title,
+        viewport_span=viewport_span,
+        tight_margins=tight_margins,
     )
     fig.canvas.draw()
     rgba = np.asarray(fig.canvas.buffer_rgba())
