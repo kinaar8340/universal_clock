@@ -514,9 +514,9 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         petal_running = gr.State(False)
         petal_epoch = gr.State(0.0)
 
-        with gr.Row(elem_id="main-row", equal_height=True):
+        with gr.Row(elem_id="main-row", equal_height=True, height=PANEL_HEIGHT):
             with gr.Column(scale=1, min_width=CONTROLS_WIDTH, elem_id="col-controls"):
-                with gr.Column(elem_id="controls-scroll"):
+                with gr.Column(elem_id="controls-scroll", variant="compact"):
                     gr.Markdown("**1 · Demo**", elem_classes=["section-header"])
                     demo_scene = gr.Dropdown(
                         choices=SCENE_CHOICES,
@@ -528,7 +528,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                         demo_hint(DEFAULT_DEMO),
                         elem_id="demo-hint",
                     )
-                    reload_demo_btn = gr.Button("Load scene", variant="primary")
+                    reload_demo_btn = gr.Button("Load scene", variant="primary", size="sm")
 
                     gr.Markdown("**2 · View**", elem_classes=["section-header"])
                     slice_lines = gr.Dropdown(
@@ -555,8 +555,8 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                             maximum=500000,
                         )
                         with gr.Row():
-                            step_btn = gr.Button("+ Step")
-                            reset_btn = gr.Button("Reset")
+                            step_btn = gr.Button("+ Step", size="sm")
+                            reset_btn = gr.Button("Reset", size="sm")
 
                     with gr.Accordion("4 · Live Earth rate", open=False):
                         rev_seconds = gr.Slider(
@@ -574,8 +574,8 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                             label="Speed ×",
                         )
                         with gr.Row():
-                            start_rt = gr.Button("▶ Start")
-                            stop_rt = gr.Button("■ Stop")
+                            start_rt = gr.Button("▶ Start", size="sm")
+                            stop_rt = gr.Button("■ Stop", size="sm")
 
             with gr.Column(scale=11, min_width=640, elem_id="col-clock"):
                 with gr.Column(elem_id="clock-viewport"):
@@ -584,8 +584,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                         interactive=False,
                         show_label=False,
                         height=PANEL_HEIGHT,
-                        show_fullscreen_button=False,
-                        show_share_button=False,
+                        buttons=[],
                     )
 
             with gr.Column(scale=3, min_width=280, elem_id="col-state"):
@@ -711,4 +710,4 @@ demo = build_demo()
 demo.queue(default_concurrency_limit=1)
 
 if __name__ == "__main__":
-    demo.launch(theme=THEME, css=CUSTOM_CSS)
+    demo.launch(theme=THEME, css=CUSTOM_CSS, ssr_mode=False)
