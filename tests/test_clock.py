@@ -8,8 +8,11 @@ from universal_clock.clock import EARTH_DAY_SECONDS, SLICES_PER_GEAR
 from universal_clock.visualize import (
     DEFAULT_SLICE_LINES,
     GEAR_COLORS,
+    PETAL_FRAME_SECONDS,
     petal_color_for_elapsed,
     petal_color_gear,
+    petal_frame_index,
+    petal_filled_indices,
     petal_segment_index,
     slice_line_step,
 )
@@ -75,10 +78,28 @@ def test_petal_color_sequence():
     assert petal_color_for_elapsed(0) == GEAR_COLORS[1]
     assert petal_color_gear(9.9) == 2
     assert petal_color_gear(10) == 3
+    assert petal_color_gear(29.9) == 4
+    assert petal_color_gear(30) == 5
     assert petal_color_gear(49.9) == 6
     assert petal_color_gear(50) == 7
     assert petal_color_gear(59.9) == 7
     assert petal_color_gear(60) == 2
+    assert petal_color_for_elapsed(30) == GEAR_COLORS[4]
+    assert petal_color_for_elapsed(50) == GEAR_COLORS[6]
+
+
+def test_petal_frame_sequence():
+    assert PETAL_FRAME_SECONDS == 10 / 3
+    assert petal_frame_index(0) == 0
+    assert petal_frame_index(3.32) == 0
+    assert petal_frame_index(3.34) == 1
+    assert petal_frame_index(6.65) == 1
+    assert petal_frame_index(6.67) == 2
+    assert petal_frame_index(9.99) == 2
+    assert petal_frame_index(10) == 0
+    assert petal_filled_indices(0) == frozenset({0, 3})
+    assert petal_filled_indices(4) == frozenset({1, 4})
+    assert petal_filled_indices(7) == frozenset({2, 5})
 
 
 def test_slice_line_step_default():
