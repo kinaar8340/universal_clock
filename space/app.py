@@ -607,6 +607,14 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
             clock, img, st = load_demo_scene(scene, *display)
             return clock, False, 0.0, img, st
 
+        def _on_app_load(scene, *display):
+            """Defer the first matplotlib render to the petal timer (avoids SSR startup hangs)."""
+            if scene == PETAL_SCENE:
+                clock = _new_clock()
+                state = _format_state(clock, petal_elapsed=0.0)
+                return clock, True, time.time(), gr.skip(), state
+            return _load_scene_or_petal(scene, *display)
+
         reload_demo_btn.click(
             _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
@@ -679,7 +687,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         )
 
         demo.load(
-            _load_scene_or_petal,
+            _on_app_load,
             inputs=[demo_scene, *display_inputs],
             outputs=petal_outputs,
         ).then(
