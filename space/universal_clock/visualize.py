@@ -7,7 +7,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Circle, Wedge
+from matplotlib.patches import Circle, Ellipse, Wedge
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
 
 from .clock import SLICES_PER_GEAR, UniversalPiClock
 
@@ -28,6 +30,22 @@ TEXT_COLOR = "#e6edf3"
 DEFAULT_SLICE_LINES = 70
 PETAL_CYCLE_SECONDS = 60
 PETAL_SEGMENT_SECONDS = 10
+PETAL_FRAME_SECONDS = PETAL_SEGMENT_SECONDS / 3.0
+PETAL_COUNT = 6
+# Clockwise from upper-right (1 o'clock); A–F index 0–5.
+PETAL_START_DEG = 60.0
+PETAL_LETTERS = ("A", "B", "C", "D", "E", "F")
+# frame_01 → A+D, frame_02 → B+E, frame_03 → C+F (opposite pairs).
+PETAL_FRAME_FILLS: tuple[frozenset[int], ...] = (
+    frozenset({0, 3}),
+    frozenset({1, 4}),
+    frozenset({2, 5}),
+)
+
+
+def petal_angle_deg(petal_index: int) -> float:
+    """Matplotlib degrees for petal 0–5 (A–F), clockwise from upper-right."""
+    return PETAL_START_DEG - petal_index * (360.0 / PETAL_COUNT)
 
 
 def petal_segment_index(elapsed_seconds: float) -> int:
@@ -41,8 +59,132 @@ def petal_color_gear(elapsed_seconds: float) -> int:
 
 
 def petal_color_for_elapsed(elapsed_seconds: float) -> str:
-    """Fill/hand color for Gear 1 petal at this point in the 60s sequence."""
+    """Fill color for Gear 1 petals at this point in the 60s sequence."""
     return GEAR_COLORS[petal_color_gear(elapsed_seconds) - 1]
+
+
+def petal_frame_index(elapsed_seconds: float) -> int:
+    """0–2 within each 10s segment (≈3.33s per frame)."""
+    segment_t = elapsed_seconds % PETAL_SEGMENT_SECONDS
+    return min(int(segment_t / PETAL_FRAME_SECONDS), 2)
+
+
+def petal_filled_indices(elapsed_seconds: float) -> frozenset[int]:
+    """Petal indices filled for the current animation frame."""
+    return PETAL_FRAME_FILLS[petal_frame_index(elapsed_seconds)]
+
+
+def _petal_lens_vertices(
+    center: tuple[float, float],
+    radius: float,
+    angle_deg: float,
+    *,
+    points: int = 48,
+) -> np.ndarray:
+    """Lens-shaped petal inscribed in the gear circle (vesica-style)."""
+    cx, cy = center
+    axis = math.radians(angle_deg)
+    # Offset circle centers along the petal axis inside the gear rim.
+    offset = radius * 0.42
+    r = radius * 0.58
+    c1 = (cx + offset * math.cos(axis), cy + offset * math.sin(axis))
+    c2 = (cx - offset * math.cos(axis), cy - offset * math.sin(axis))
+
+    ts = np.linspace(0.0, 2.0 * math.pi, points, endpoint=False)
+    ring = np.column_stack(
+        (
+            cx + radius * 0.98 * np.cos(ts),
+            cy + radius * 0.98 * np.sin(ts),
+        )
+    )
+
+    samples: list[tuple[float, float]] = []
+    for t in ts:
+        px = cx + radius * 0.98 * math.cos(t)
+        py = cy + radius * 0.98 * math.sin(t)
+        in1 = (px - c1[0]) ** 2 + (py - c1[1]) ** 2 <= r * r
+        in2 = (px - c2[0]) ** 2 + (py - c2[1]) ** 2 <= r * r
+        if in1 and in2:
+            samples.append((px, py))
+
+    if len(samples) < 3:
+        # Fallback: slim ellipse petal aligned to axis.
+        ecx = cx + offset * 0.55 * math.cos(axis)
+        ecy = cy + offset * 0.55 * math.sin(axis)
+        return np.array(
+            Ellipse(
+                (ecx, ecy),
+                radius * 1.05,
+                radius * 0.38,
+                angle=angle_deg - 90.0,
+            ).get_verts()
+        )
+
+    pts = np.array(samples)
+    # Keep the petal sector nearest the target angle.
+    angles = np.arctan2(pts[:, 1] - cy, pts[:, 0] - cx)
+    target = axis
+    delta = (angles - target + math.pi) % (2.0 * math.pi) - math.pi
+    pts = pts[np.abs(delta) <= math.pi / 3.0 + 0.15]
+    if len(pts) < 3:
+        pts = np.array(samples)
+
+    centroid = pts.mean(axis=0)
+    sort_angles = np.arctan2(pts[:, 1] - centroid[1], pts[:, 0] - centroid[0])
+    order = np.argsort(sort_angles)
+    return pts[order]
+
+
+def _draw_petal_flower(
+    ax: plt.Axes,
+    center: tuple[float, float],
+    radius: float,
+    *,
+    fill_color: str,
+    filled_indices: frozenset[int],
+    show_labels: bool = False,
+) -> None:
+    """Six-petal flower overlay for Gear 1 (no hand / slice fill)."""
+    cx, cy = center
+    for i in range(PETAL_COUNT):
+        angle = petal_angle_deg(i)
+        verts = _petal_lens_vertices((cx, cy), radius, angle)
+        if i in filled_indices:
+            facecolor = fill_color
+            alpha = 0.88
+            edgecolor = fill_color
+            lw = 0.6
+            z = 4
+        else:
+            facecolor = "none"
+            alpha = 1.0
+            edgecolor = OUTLINE_COLOR
+            lw = 0.9
+            z = 3
+        patch = PathPatch(
+            Path(verts, closed=True),
+            facecolor=facecolor,
+            edgecolor=edgecolor,
+            linewidth=lw,
+            alpha=alpha,
+            zorder=z,
+        )
+        ax.add_patch(patch)
+        if show_labels:
+            rad = math.radians(angle)
+            lx = cx + radius * 0.62 * math.cos(rad)
+            ly = cy + radius * 0.62 * math.sin(rad)
+            ax.text(
+                lx,
+                ly,
+                PETAL_LETTERS[i],
+                ha="center",
+                va="center",
+                fontsize=9,
+                color=TEXT_COLOR,
+                fontweight="bold",
+                zorder=6,
+            )
 
 
 def egg_of_life_positions(
@@ -198,11 +340,16 @@ def _draw_gear_circle(
     show_hands: bool = True,
     label_every: int = 50,
     slice_lines: int = DEFAULT_SLICE_LINES,
+    petal_overlay: bool = False,
+    petal_elapsed: float = 0.0,
+    petal_show_labels: bool = False,
 ) -> None:
     cx, cy = center
-    _draw_filled_slices(ax, (cx, cy), radius, k, color)
-    if show_hands:
-        draw_hand(ax, (cx, cy), radius, k, color)
+    use_petal = petal_overlay and gear_num == 1
+    if not use_petal:
+        _draw_filled_slices(ax, (cx, cy), radius, k, color)
+        if show_hands:
+            draw_hand(ax, (cx, cy), radius, k, color)
     outline = Circle(
         (cx, cy),
         radius,
@@ -212,10 +359,19 @@ def _draw_gear_circle(
         zorder=5,
     )
     ax.add_patch(outline)
-    if show_ticks:
+    if show_ticks and not use_petal:
         _draw_slice_ticks(ax, (cx, cy), radius, num_lines=slice_lines)
-    if show_labels:
+    if show_labels and not use_petal:
         _draw_slice_labels(ax, (cx, cy), radius, every=label_every)
+    if use_petal:
+        _draw_petal_flower(
+            ax,
+            (cx, cy),
+            radius,
+            fill_color=petal_color_for_elapsed(petal_elapsed),
+            filled_indices=petal_filled_indices(petal_elapsed),
+            show_labels=petal_show_labels,
+        )
     v = k / math.pi
     ax.text(
         cx,
@@ -242,6 +398,9 @@ def draw_clock(
     title: str | None = None,
     viewport_span: float | None = None,
     gear_colors: dict[int, str] | None = None,
+    petal_overlay: bool = False,
+    petal_elapsed: float = 0.0,
+    petal_show_labels: bool = False,
 ) -> None:
     """Draw the Egg of Life clock face onto an existing axes."""
     centers = egg_of_life_positions(circle_radius)
@@ -269,6 +428,9 @@ def draw_clock(
             show_labels=show_labels,
             show_hands=show_hands,
             slice_lines=slice_lines,
+            petal_overlay=petal_overlay,
+            petal_elapsed=petal_elapsed,
+            petal_show_labels=petal_show_labels,
         )
 
     if title is None:
@@ -296,6 +458,9 @@ def render_clock(
     viewport_span: float | None = None,
     tight_margins: bool = False,
     gear_colors: dict[int, str] | None = None,
+    petal_overlay: bool = False,
+    petal_elapsed: float = 0.0,
+    petal_show_labels: bool = False,
 ) -> plt.Figure:
     """Render the Egg of Life clock face for the current clock state."""
     fig, ax = plt.subplots(figsize=figsize, facecolor=BG_COLOR)
@@ -310,6 +475,9 @@ def render_clock(
         title=title,
         viewport_span=viewport_span,
         gear_colors=gear_colors,
+        petal_overlay=petal_overlay,
+        petal_elapsed=petal_elapsed,
+        petal_show_labels=petal_show_labels,
     )
     if tight_margins:
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
@@ -334,6 +502,9 @@ def render_clock_array(
     viewport_span: float | None = None,
     tight_margins: bool = False,
     gear_colors: dict[int, str] | None = None,
+    petal_overlay: bool = False,
+    petal_elapsed: float = 0.0,
+    petal_show_labels: bool = False,
 ) -> np.ndarray:
     """Render the clock to an RGB numpy array for Gradio / web display."""
     fig = render_clock(
@@ -349,6 +520,9 @@ def render_clock_array(
         viewport_span=viewport_span,
         tight_margins=tight_margins,
         gear_colors=gear_colors,
+        petal_overlay=petal_overlay,
+        petal_elapsed=petal_elapsed,
+        petal_show_labels=petal_show_labels,
     )
     fig.canvas.draw()
     rgba = np.asarray(fig.canvas.buffer_rgba())

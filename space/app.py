@@ -14,9 +14,11 @@ from universal_clock.clock import EARTH_DAY_SECONDS
 from universal_clock.visualize import (
     DEFAULT_SLICE_LINES,
     PETAL_CYCLE_SECONDS,
+    PETAL_LETTERS,
     PETAL_SEGMENT_SECONDS,
-    petal_color_for_elapsed,
     petal_color_gear,
+    petal_frame_index,
+    petal_filled_indices,
 )
 
 import gradio as gr
@@ -35,8 +37,9 @@ DEMO_SCENES: dict[str, tuple[int, str]] = {
 PETAL_SCENE = "Petal · 60s"
 DEMO_SCENES[PETAL_SCENE] = (
     -1,
-    "60s loop: G1 ticks 1/s; petal color cycles G2→G7 every 10s.",
+    "60s loop: G1 flower frames A+D / B+E / C+F (3.33s each); color G2→G7 every 10s.",
 )
+PETAL_RENDER_INTERVAL = 0.1
 SCENE_CHOICES = list(DEMO_SCENES.keys())
 DEFAULT_DEMO = PETAL_SCENE
 
@@ -55,9 +58,14 @@ def _format_state(
         t = petal_elapsed % PETAL_CYCLE_SECONDS
         seg = int(t // PETAL_SEGMENT_SECONDS)
         g = petal_color_gear(t)
+        frame = petal_frame_index(t) + 1
+        filled = "".join(
+            PETAL_LETTERS[i] for i in sorted(petal_filled_indices(t))
+        )
         lines.append(
             f"Petal: {t:4.1f}s / {PETAL_CYCLE_SECONDS}s  "
-            f"·  color=G{g}  ·  segment {seg * 10}–{(seg + 1) * 10}s"
+            f"·  frame {frame:02d} ({filled})  ·  color=G{g}  "
+            f"·  {seg * 10}–{(seg + 1) * 10}s"
         )
         lines.append("")
     for i in range(1, 8):
@@ -83,7 +91,6 @@ def _render(
     show_labels: bool,
     show_ticks: bool,
     petal_elapsed: float | None = None,
-    gear_colors: dict[int, str] | None = None,
 ) -> tuple:
     image = render_clock_array(
         clock,
@@ -96,7 +103,9 @@ def _render(
         title="",
         viewport_span=CLOCK_VIEWPORT_SPAN,
         tight_margins=True,
-        gear_colors=gear_colors,
+        petal_overlay=petal_elapsed is not None,
+        petal_elapsed=petal_elapsed or 0.0,
+        petal_show_labels=False,
     )
     return image, _format_state(clock, petal_elapsed=petal_elapsed)
 
@@ -134,10 +143,9 @@ def start_petal_sequence(
     slice_lines: int,
     overlays: list[str],
 ) -> tuple:
-    """Reset and begin the 60s petal loop (1 tick/s, color G2→G7)."""
+    """Reset and begin the 60s petal loop (1 tick/s, flower frames, color G2→G7)."""
     clock = _new_clock()
     elapsed = 0.0
-    color = petal_color_for_elapsed(elapsed)
     return (
         clock,
         True,
@@ -146,7 +154,6 @@ def start_petal_sequence(
             clock,
             **_display_kwargs(slice_lines, overlays),
             petal_elapsed=elapsed,
-            gear_colors={1: color},
         ),
     )
 
@@ -167,9 +174,14 @@ def petal_sequence_tick(
             epoch,
             *_render(clock, **_display_kwargs(slice_lines, overlays)),
         )
-    elapsed = time.time() - epoch
-    clock.tick(1)
-    color = petal_color_for_elapsed(elapsed)
+    elapsed = (time.time() - epoch) % PETAL_CYCLE_SECONDS
+    target_ticks = int(elapsed)
+    if clock.total_ticks < target_ticks:
+        clock.tick(target_ticks - clock.total_ticks)
+    elif clock.total_ticks > target_ticks:
+        clock = _new_clock()
+        if target_ticks > 0:
+            clock.tick(target_ticks)
     return (
         clock,
         running,
@@ -178,7 +190,6 @@ def petal_sequence_tick(
             clock,
             **_display_kwargs(slice_lines, overlays),
             petal_elapsed=elapsed,
-            gear_colors={1: color},
         ),
     )
 
@@ -265,13 +276,11 @@ def refresh_view(
     if clock is None:
         clock = _new_clock()
     if petal_running:
-        elapsed = time.time() - petal_epoch
-        color = petal_color_for_elapsed(elapsed)
+        elapsed = (time.time() - petal_epoch) % PETAL_CYCLE_SECONDS
         return clock, *_render(
             clock,
             **_display_kwargs(slice_lines, overlays),
             petal_elapsed=elapsed,
-            gear_colors={1: color},
         )
     return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
 
@@ -568,7 +577,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                 )
 
         earth_timer = gr.Timer(0.15, active=False)
-        petal_timer = gr.Timer(1.0, active=False)
+        petal_timer = gr.Timer(PETAL_RENDER_INTERVAL, active=False)
 
         display_inputs = [slice_lines, overlays]
         outputs = [clock_state, clock_image, state_text]
