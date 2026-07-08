@@ -39,7 +39,8 @@ DEMO_SCENES[PETAL_SCENE] = (
     -1,
     "60s loop: G1 flower frames A+D / B+E / C+F (3.33s each); color G2→G7 every 10s.",
 )
-PETAL_RENDER_INTERVAL = 0.1
+# cpu-basic: avoid 10 renders/s; frame index still advances at 3.33s boundaries.
+PETAL_RENDER_INTERVAL = 0.33
 SCENE_CHOICES = list(DEMO_SCENES.keys())
 DEFAULT_DEMO = PETAL_SCENE
 
@@ -480,7 +481,7 @@ footer, .footer {{
 
 
 def build_demo() -> gr.Blocks:
-    with gr.Blocks(title="Universal π Clock") as demo:
+    with gr.Blocks(title="Universal π Clock", theme=THEME, css=CUSTOM_CSS) as demo:
         gr.Markdown(
             f"""
 # Universal π Clock · Egg of Life
@@ -676,5 +677,8 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
     return demo
 
 
+# HF Spaces imports this module and looks for a top-level `demo` object.
+demo = build_demo()
+
 if __name__ == "__main__":
-    build_demo().launch(theme=THEME, css=CUSTOM_CSS)
+    demo.launch()

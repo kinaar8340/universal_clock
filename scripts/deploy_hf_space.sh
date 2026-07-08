@@ -9,6 +9,8 @@ MSG="${1:-feat(hf-space): Universal π Clock Gradio demo}"
 
 echo "=== 1. Sync HF space bundle ==="
 bash scripts/sync_hf_space.sh
+find space -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find space -name '*.pyc' -delete 2>/dev/null || true
 
 echo "=== 2. Git commit (universal_clock) ==="
 git add space/ scripts/sync_hf_space.sh scripts/deploy_hf_space.sh universal_clock/
@@ -30,8 +32,12 @@ echo "=== 4. Deploy to HF Space ==="
 hf upload kinaar111/universal_clock space \
   --type space \
   --commit-message "$MSG" \
+  --delete "__pycache__/*" \
+  --delete "**/__pycache__/*" \
+  --delete "*.pyc" \
   --exclude ".git/*" \
   --exclude "__pycache__/*" \
+  --exclude "**/__pycache__/*" \
   --exclude "*.pyc"
 
 echo ""
