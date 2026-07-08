@@ -3,13 +3,21 @@
 
 from __future__ import annotations
 
+import time
+
 import matplotlib
 
 matplotlib.use("Agg")
 
 from universal_clock import UniversalPiClock, render_clock_array
 from universal_clock.clock import EARTH_DAY_SECONDS
-from universal_clock.visualize import DEFAULT_SLICE_LINES
+from universal_clock.visualize import (
+    DEFAULT_SLICE_LINES,
+    PETAL_CYCLE_SECONDS,
+    PETAL_SEGMENT_SECONDS,
+    petal_color_for_elapsed,
+    petal_color_gear,
+)
 
 import gradio as gr
 
@@ -24,19 +32,46 @@ DEMO_SCENES: dict[str, tuple[int, str]] = {
     "Carry · 50k": (50000, "Carry propagates — watch G3+ advance."),
     "Deep · 500k": (500000, "Deep hierarchy — stress-test all seven gears."),
 }
-DEFAULT_DEMO = "PoC · 5k"
+PETAL_SCENE = "Petal · 60s"
+DEMO_SCENES[PETAL_SCENE] = (
+    -1,
+    "60s loop: G1 ticks 1/s; petal color cycles G2→G7 every 10s.",
+)
+SCENE_CHOICES = list(DEMO_SCENES.keys())
+DEFAULT_DEMO = PETAL_SCENE
 
 PANEL_HEIGHT = 860
 CLOCK_VIEWPORT_SPAN = 2.12
 CONTROLS_WIDTH = 220
 
 
-def _format_state(clock: UniversalPiClock) -> str:
-    lines = [f"Total ticks: {clock.total_ticks:,}"]
+def _format_state(
+    clock: UniversalPiClock,
+    *,
+    petal_elapsed: float | None = None,
+) -> str:
+    lines: list[str] = [f"Total ticks: {clock.total_ticks:,}"]
+    if petal_elapsed is not None:
+        t = petal_elapsed % PETAL_CYCLE_SECONDS
+        seg = int(t // PETAL_SEGMENT_SECONDS)
+        g = petal_color_gear(t)
+        lines.append(
+            f"Petal: {t:4.1f}s / {PETAL_CYCLE_SECONDS}s  "
+            f"·  color=G{g}  ·  segment {seg * 10}–{(seg + 1) * 10}s"
+        )
+        lines.append("")
     for i in range(1, 8):
         k = clock.gears[i - 1]
         fill = 100.0 * k / 350
-        lines.append(f"Gear {i}: k={k:3d}  v≈{clock.value(i):6.2f}  ({fill:5.1f}% filled)")
+        if petal_elapsed is not None and i == 1:
+            g = petal_color_gear(petal_elapsed)
+            overlay = f"petal→G{g}"
+        elif petal_elapsed is not None:
+            overlay = "hands"
+        else:
+            overlay = ""
+        base = f"Gear {i}: k={k:3d}  v≈{clock.value(i):6.2f}  ({fill:5.1f}% filled)"
+        lines.append(f"{base}  {overlay}" if overlay else base)
     return "\n".join(lines)
 
 
@@ -47,6 +82,8 @@ def _render(
     show_hands: bool,
     show_labels: bool,
     show_ticks: bool,
+    petal_elapsed: float | None = None,
+    gear_colors: dict[int, str] | None = None,
 ) -> tuple:
     image = render_clock_array(
         clock,
@@ -59,8 +96,9 @@ def _render(
         title="",
         viewport_span=CLOCK_VIEWPORT_SPAN,
         tight_margins=True,
+        gear_colors=gear_colors,
     )
-    return image, _format_state(clock)
+    return image, _format_state(clock, petal_elapsed=petal_elapsed)
 
 
 def _display_kwargs(
@@ -84,12 +122,65 @@ def load_demo_scene(
     slice_lines: int,
     overlays: list[str],
 ) -> tuple:
-    """Load a named demo from scratch."""
+    """Load a named demo from scratch (static scenes only)."""
     clock = _new_clock()
     ticks, _ = DEMO_SCENES.get(scene, (0, ""))
-    if ticks:
+    if ticks > 0:
         clock.fast_forward(ticks)
     return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+
+
+def start_petal_sequence(
+    slice_lines: int,
+    overlays: list[str],
+) -> tuple:
+    """Reset and begin the 60s petal loop (1 tick/s, color G2→G7)."""
+    clock = _new_clock()
+    elapsed = 0.0
+    color = petal_color_for_elapsed(elapsed)
+    return (
+        clock,
+        True,
+        time.time(),
+        *_render(
+            clock,
+            **_display_kwargs(slice_lines, overlays),
+            petal_elapsed=elapsed,
+            gear_colors={1: color},
+        ),
+    )
+
+
+def petal_sequence_tick(
+    clock: UniversalPiClock | None,
+    running: bool,
+    epoch: float,
+    slice_lines: int,
+    overlays: list[str],
+) -> tuple:
+    if clock is None:
+        clock = _new_clock()
+    if not running:
+        return (
+            clock,
+            running,
+            epoch,
+            *_render(clock, **_display_kwargs(slice_lines, overlays)),
+        )
+    elapsed = time.time() - epoch
+    clock.tick(1)
+    color = petal_color_for_elapsed(elapsed)
+    return (
+        clock,
+        running,
+        epoch,
+        *_render(
+            clock,
+            **_display_kwargs(slice_lines, overlays),
+            petal_elapsed=elapsed,
+            gear_colors={1: color},
+        ),
+    )
 
 
 def demo_hint(scene: str) -> str:
@@ -168,10 +259,31 @@ def refresh_view(
     clock: UniversalPiClock | None,
     slice_lines: int,
     overlays: list[str],
+    petal_running: bool = False,
+    petal_epoch: float = 0.0,
 ) -> tuple:
     if clock is None:
         clock = _new_clock()
+    if petal_running:
+        elapsed = time.time() - petal_epoch
+        color = petal_color_for_elapsed(elapsed)
+        return clock, *_render(
+            clock,
+            **_display_kwargs(slice_lines, overlays),
+            petal_elapsed=elapsed,
+            gear_colors={1: color},
+        )
     return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+
+
+def _timers_for_scene(scene: str) -> tuple:
+    if scene == PETAL_SCENE:
+        return gr.Timer(active=False), gr.Timer(active=True)
+    return gr.Timer(active=False), gr.Timer(active=False)
+
+
+def _stop_all_timers() -> tuple:
+    return False, False, gr.Timer(active=False), gr.Timer(active=False)
 
 
 THEME = gr.themes.Base(
@@ -370,13 +482,15 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
 
         clock_state = gr.State(_new_clock())
         realtime_running = gr.State(False)
+        petal_running = gr.State(False)
+        petal_epoch = gr.State(0.0)
 
         with gr.Row(elem_id="main-row", equal_height=True, height=PANEL_HEIGHT):
             with gr.Column(scale=1, min_width=CONTROLS_WIDTH, elem_id="col-controls"):
                 with gr.Column(elem_id="controls-scroll", variant="compact"):
                     gr.Markdown("**1 · Demo**", elem_classes=["section-header"])
                     demo_scene = gr.Dropdown(
-                        choices=list(DEMO_SCENES.keys()),
+                        choices=SCENE_CHOICES,
                         value=DEFAULT_DEMO,
                         label="Scene",
                         show_label=False,
@@ -453,20 +567,30 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                     interactive=False,
                 )
 
-        timer = gr.Timer(0.15, active=False)
+        earth_timer = gr.Timer(0.15, active=False)
+        petal_timer = gr.Timer(1.0, active=False)
 
         display_inputs = [slice_lines, overlays]
         outputs = [clock_state, clock_image, state_text]
         rt_outputs = [clock_state, realtime_running, speed, clock_image, state_text]
+        petal_outputs = [clock_state, petal_running, petal_epoch, clock_image, state_text]
         view_outputs = [clock_state, clock_image, state_text]
+        anim_stop = [realtime_running, petal_running, earth_timer, petal_timer]
+
+        def _load_scene_or_petal(scene, *display):
+            if scene == PETAL_SCENE:
+                return start_petal_sequence(*display)
+            clock, img, st = load_demo_scene(scene, *display)
+            return clock, False, 0.0, img, st
 
         reload_demo_btn.click(
-            load_demo_scene,
+            _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
-            outputs=outputs,
+            outputs=petal_outputs,
         ).then(lambda: False, outputs=realtime_running).then(
-            lambda: gr.Timer(active=False),
-            outputs=timer,
+            _timers_for_scene,
+            inputs=demo_scene,
+            outputs=[earth_timer, petal_timer],
         )
 
         demo_scene.change(
@@ -474,22 +598,20 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
             inputs=demo_scene,
             outputs=demo_hint_box,
         ).then(
-            load_demo_scene,
+            _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
-            outputs=outputs,
+            outputs=petal_outputs,
         ).then(lambda: False, outputs=realtime_running).then(
-            lambda: gr.Timer(active=False),
-            outputs=timer,
+            _timers_for_scene,
+            inputs=demo_scene,
+            outputs=[earth_timer, petal_timer],
         )
 
         reset_btn.click(
             reset_clock,
             inputs=display_inputs,
             outputs=outputs,
-        ).then(lambda: False, outputs=realtime_running).then(
-            lambda: gr.Timer(active=False),
-            outputs=timer,
-        )
+        ).then(_stop_all_timers, outputs=anim_stop)
 
         step_btn.click(
             step_clock,
@@ -501,32 +623,45 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
             enable_realtime,
             inputs=[clock_state, rev_seconds, speed, *display_inputs],
             outputs=rt_outputs,
-        ).then(lambda: gr.Timer(active=True), outputs=timer)
+        ).then(lambda: (False, gr.Timer(active=False), gr.Timer(active=True)), outputs=[
+            petal_running, petal_timer, earth_timer,
+        ])
 
         stop_rt.click(
             disable_realtime,
             inputs=[clock_state, *display_inputs],
             outputs=rt_outputs,
-        ).then(lambda: gr.Timer(active=False), outputs=timer)
+        ).then(lambda: gr.Timer(active=False), outputs=earth_timer)
 
         for control in (slice_lines, overlays):
             control.change(
                 refresh_view,
-                inputs=[clock_state, *display_inputs],
+                inputs=[clock_state, *display_inputs, petal_running, petal_epoch],
                 outputs=view_outputs,
             )
 
-        timer.tick(
+        earth_timer.tick(
             realtime_tick,
             inputs=[clock_state, realtime_running, speed, *display_inputs],
             outputs=view_outputs,
             show_progress="hidden",
         )
 
+        petal_timer.tick(
+            petal_sequence_tick,
+            inputs=[clock_state, petal_running, petal_epoch, *display_inputs],
+            outputs=petal_outputs,
+            show_progress="hidden",
+        )
+
         demo.load(
-            load_demo_scene,
+            _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
-            outputs=outputs,
+            outputs=petal_outputs,
+        ).then(
+            _timers_for_scene,
+            inputs=demo_scene,
+            outputs=[earth_timer, petal_timer],
         )
 
     return demo

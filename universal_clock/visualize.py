@@ -26,6 +26,23 @@ OUTLINE_COLOR = "#3d4f5f"
 LABEL_COLOR = "#8b9cb3"
 TEXT_COLOR = "#e6edf3"
 DEFAULT_SLICE_LINES = 70
+PETAL_CYCLE_SECONDS = 60
+PETAL_SEGMENT_SECONDS = 10
+
+
+def petal_segment_index(elapsed_seconds: float) -> int:
+    """Segment 0–5 within the 60s petal loop (each 10s → gears 2–7)."""
+    return int((elapsed_seconds % PETAL_CYCLE_SECONDS) // PETAL_SEGMENT_SECONDS)
+
+
+def petal_color_gear(elapsed_seconds: float) -> int:
+    """Gear number (2–7) whose hand color the center petal matches."""
+    return petal_segment_index(elapsed_seconds) + 2
+
+
+def petal_color_for_elapsed(elapsed_seconds: float) -> str:
+    """Fill/hand color for Gear 1 petal at this point in the 60s sequence."""
+    return GEAR_COLORS[petal_color_gear(elapsed_seconds) - 1]
 
 
 def egg_of_life_positions(
@@ -224,6 +241,7 @@ def draw_clock(
     slice_lines: int = DEFAULT_SLICE_LINES,
     title: str | None = None,
     viewport_span: float | None = None,
+    gear_colors: dict[int, str] | None = None,
 ) -> None:
     """Draw the Egg of Life clock face onto an existing axes."""
     centers = egg_of_life_positions(circle_radius)
@@ -236,15 +254,17 @@ def draw_clock(
     ax.set_ylim(-span, span)
     ax.axis("off")
 
+    overrides = gear_colors or {}
     for gear_num in range(1, 8):
         idx = gear_num - 1
+        color = overrides.get(gear_num, GEAR_COLORS[idx])
         _draw_gear_circle(
             ax,
             centers[idx],
             circle_radius,
             gear_num,
             clock.gears[idx],
-            GEAR_COLORS[idx],
+            color,
             show_ticks=show_ticks,
             show_labels=show_labels,
             show_hands=show_hands,
@@ -275,6 +295,7 @@ def render_clock(
     title: str | None = None,
     viewport_span: float | None = None,
     tight_margins: bool = False,
+    gear_colors: dict[int, str] | None = None,
 ) -> plt.Figure:
     """Render the Egg of Life clock face for the current clock state."""
     fig, ax = plt.subplots(figsize=figsize, facecolor=BG_COLOR)
@@ -288,6 +309,7 @@ def render_clock(
         slice_lines=slice_lines,
         title=title,
         viewport_span=viewport_span,
+        gear_colors=gear_colors,
     )
     if tight_margins:
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
@@ -311,6 +333,7 @@ def render_clock_array(
     title: str = "",
     viewport_span: float | None = None,
     tight_margins: bool = False,
+    gear_colors: dict[int, str] | None = None,
 ) -> np.ndarray:
     """Render the clock to an RGB numpy array for Gradio / web display."""
     fig = render_clock(
@@ -325,6 +348,7 @@ def render_clock_array(
         title=title,
         viewport_span=viewport_span,
         tight_margins=tight_margins,
+        gear_colors=gear_colors,
     )
     fig.canvas.draw()
     rgba = np.asarray(fig.canvas.buffer_rgba())

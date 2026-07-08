@@ -5,7 +5,14 @@ from unittest.mock import patch
 
 from universal_clock import UniversalPiClock
 from universal_clock.clock import EARTH_DAY_SECONDS, SLICES_PER_GEAR
-from universal_clock.visualize import DEFAULT_SLICE_LINES, slice_line_step
+from universal_clock.visualize import (
+    DEFAULT_SLICE_LINES,
+    GEAR_COLORS,
+    petal_color_for_elapsed,
+    petal_color_gear,
+    petal_segment_index,
+    slice_line_step,
+)
 
 
 def test_initial_state():
@@ -60,6 +67,18 @@ def test_tick_realtime_waits():
         clock.last_tick_time = t0
         assert clock.tick_realtime() is True
         assert clock.gears[0] == 2
+
+
+def test_petal_color_sequence():
+    assert petal_segment_index(0) == 0
+    assert petal_color_gear(0) == 2
+    assert petal_color_for_elapsed(0) == GEAR_COLORS[1]
+    assert petal_color_gear(9.9) == 2
+    assert petal_color_gear(10) == 3
+    assert petal_color_gear(49.9) == 6
+    assert petal_color_gear(50) == 7
+    assert petal_color_gear(59.9) == 7
+    assert petal_color_gear(60) == 2
 
 
 def test_slice_line_step_default():
