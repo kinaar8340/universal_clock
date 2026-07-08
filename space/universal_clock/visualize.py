@@ -113,7 +113,7 @@ def _draw_petal_flower(
     ax.imshow(
         rgba,
         extent=extent,
-        origin="lower",
+        origin="upper",
         interpolation="bilinear",
         zorder=4,
     )

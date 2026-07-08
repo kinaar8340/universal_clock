@@ -10,7 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 from universal_clock import UniversalPiClock, render_clock_array
-from universal_clock.clock import EARTH_DAY_SECONDS
+from universal_clock.clock import EARTH_DAY_SECONDS, SLICES_PER_GEAR
 from universal_clock.visualize import (
     DEFAULT_SLICE_LINES,
     PETAL_CYCLE_SECONDS,
@@ -35,7 +35,7 @@ DEMO_SCENES: dict[str, tuple[int, str]] = {
 PETAL_SCENE = "Petal · 60s"
 DEMO_SCENES[PETAL_SCENE] = (
     -1,
-    "60s loop: 18 gear_1 frames (3 per 10s segment); color G2→G7.",
+    "60s loop: 18 frames · G1 full 350/π revolution · color G2→G7.",
 )
 # cpu-basic: avoid 10 renders/s; frame index still advances at 3.33s boundaries.
 PETAL_RENDER_INTERVAL = 0.33
@@ -171,13 +171,15 @@ def petal_sequence_tick(
             *_render(clock, **_display_kwargs(slice_lines, overlays)),
         )
     elapsed = (time.time() - epoch) % PETAL_CYCLE_SECONDS
-    target_ticks = int(elapsed)
-    if clock.total_ticks < target_ticks:
-        clock.tick(target_ticks - clock.total_ticks)
-    elif clock.total_ticks > target_ticks:
+    # One full 350/π revolution on G1 over 60s (matches gear1_60s_sequence.mp4).
+    target_ticks = min(
+        int(elapsed * SLICES_PER_GEAR / PETAL_CYCLE_SECONDS),
+        SLICES_PER_GEAR - 1,
+    )
+    if clock.total_ticks != target_ticks:
         clock = _new_clock()
         if target_ticks > 0:
-            clock.tick(target_ticks)
+            clock.fast_forward(target_ticks)
     return (
         clock,
         running,
