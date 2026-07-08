@@ -6,10 +6,8 @@ from __future__ import annotations
 import os
 import time
 
-# HF Spaces: bind all interfaces so the health checker can reach the app.
-os.environ.setdefault("GRADIO_SERVER_NAME", "0.0.0.0")
-os.environ.setdefault("GRADIO_SERVER_PORT", os.environ.get("PORT", "7860"))
-# HF enables SSR by default; disable to avoid asyncio teardown noise on cpu-basic.
+# HF enables SSR by default; it spawns a Node proxy and triggers asyncio
+# teardown warnings (Invalid file descriptor: -1) on cpu-basic. Disable early.
 os.environ.setdefault("GRADIO_SSR_MODE", "False")
 
 import matplotlib
@@ -712,10 +710,4 @@ demo = build_demo()
 demo.queue(default_concurrency_limit=1)
 
 if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=int(os.environ.get("PORT", 7860)),
-        theme=THEME,
-        css=CUSTOM_CSS,
-        ssr_mode=False,
-    )
+    demo.launch(theme=THEME, css=CUSTOM_CSS, ssr_mode=False)
