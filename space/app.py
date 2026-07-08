@@ -37,8 +37,9 @@ DEMO_SCENES[PETAL_SCENE] = (
     -1,
     "60s loop: 18 frames · G1 full 350/π revolution · color G2→G7.",
 )
-# cpu-basic: avoid 10 renders/s; frame index still advances at 3.33s boundaries.
-PETAL_RENDER_INTERVAL = 0.33
+# cpu-basic: matplotlib render is costly; 2 Hz is enough for 3.33s frames.
+PETAL_RENDER_INTERVAL = 0.5
+RENDER_DPI = 90
 SCENE_CHOICES = list(DEMO_SCENES.keys())
 DEFAULT_DEMO = PETAL_SCENE
 
@@ -90,8 +91,8 @@ def _render(
 ) -> tuple:
     image = render_clock_array(
         clock,
-        figsize=(11, 11),
-        dpi=110,
+        figsize=(10, 10),
+        dpi=RENDER_DPI,
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
@@ -176,10 +177,10 @@ def petal_sequence_tick(
         int(elapsed * SLICES_PER_GEAR / PETAL_CYCLE_SECONDS),
         SLICES_PER_GEAR - 1,
     )
-    if clock.total_ticks != target_ticks:
+    if target_ticks < clock.total_ticks:
         clock = _new_clock()
-        if target_ticks > 0:
-            clock.fast_forward(target_ticks)
+    elif target_ticks > clock.total_ticks:
+        clock.tick(target_ticks - clock.total_ticks)
     return (
         clock,
         running,
@@ -590,6 +591,14 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
             clock, img, st = load_demo_scene(scene, *display)
             return clock, False, 0.0, img, st
 
+        def _on_app_load(scene, *display):
+            """Lightweight startup — defer matplotlib render to first timer tick."""
+            if scene == PETAL_SCENE:
+                clock = _new_clock()
+                state = _format_state(clock, petal_elapsed=0.0)
+                return clock, True, time.time(), gr.skip(), state
+            return _load_scene_or_petal(scene, *display)
+
         reload_demo_btn.click(
             _load_scene_or_petal,
             inputs=[demo_scene, *display_inputs],
@@ -662,7 +671,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         )
 
         demo.load(
-            _load_scene_or_petal,
+            _on_app_load,
             inputs=[demo_scene, *display_inputs],
             outputs=petal_outputs,
         ).then(
