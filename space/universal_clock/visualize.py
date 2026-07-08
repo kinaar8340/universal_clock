@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle, Wedge
@@ -14,7 +13,8 @@ from PIL import Image
 from .clock import SLICES_PER_GEAR, UniversalPiClock
 
 PETAL_ASSET_DIR = Path(__file__).resolve().parent / "assets" / "petals"
-_petal_asset_cache: tuple[dict[int, np.ndarray], np.ndarray] | None = None
+PETAL_FRAMES_DIR = PETAL_ASSET_DIR / "frames"
+_petal_frame_cache: dict[int, np.ndarray] | None = None
 
 GEAR_COLORS = [
     "#e63946",  # Gear 1 — red
@@ -33,7 +33,9 @@ TEXT_COLOR = "#e6edf3"
 DEFAULT_SLICE_LINES = 70
 PETAL_CYCLE_SECONDS = 60
 PETAL_SEGMENT_SECONDS = 10
-PETAL_FRAME_SECONDS = PETAL_SEGMENT_SECONDS / 3.0
+PETAL_FRAME_COUNT = 18
+PETAL_FRAMES_PER_SEGMENT = 3
+PETAL_FRAME_SECONDS = PETAL_CYCLE_SECONDS / PETAL_FRAME_COUNT
 PETAL_COUNT = 6
 # Clockwise from upper-right (1 o'clock); A–F index 0–5.
 PETAL_START_DEG = 60.0
@@ -67,29 +69,33 @@ def petal_color_for_elapsed(elapsed_seconds: float) -> str:
 
 
 def petal_frame_index(elapsed_seconds: float) -> int:
-    """0–2 within each 10s segment (≈3.33s per frame)."""
+    """0–17 across the 60s loop (18 frames from gear_1/frame_0001–0018)."""
+    t = elapsed_seconds % PETAL_CYCLE_SECONDS
+    return min(int(t / PETAL_FRAME_SECONDS), PETAL_FRAME_COUNT - 1)
+
+
+def petal_subframe_index(elapsed_seconds: float) -> int:
+    """0–2 within each 10s segment (A+D / B+E / C+F)."""
     segment_t = elapsed_seconds % PETAL_SEGMENT_SECONDS
-    return min(int(segment_t / PETAL_FRAME_SECONDS), 2)
+    return min(int(segment_t / PETAL_FRAME_SECONDS), PETAL_FRAMES_PER_SEGMENT - 1)
 
 
 def petal_filled_indices(elapsed_seconds: float) -> frozenset[int]:
     """Petal indices filled for the current animation frame."""
-    return PETAL_FRAME_FILLS[petal_frame_index(elapsed_seconds)]
+    return PETAL_FRAME_FILLS[petal_subframe_index(elapsed_seconds)]
 
 
-def _load_petal_assets() -> tuple[dict[int, np.ndarray], np.ndarray]:
-    """Raster masks traced from ~/Videos/universal_clock_animation/gear_1 frames."""
-    global _petal_asset_cache
-    if _petal_asset_cache is not None:
-        return _petal_asset_cache
-
-    masks: dict[int, np.ndarray] = {}
-    for i in range(PETAL_COUNT):
-        path = PETAL_ASSET_DIR / f"petal_{i}.png"
-        masks[i] = np.array(Image.open(path).convert("L")) > 127
-    outline = np.array(Image.open(PETAL_ASSET_DIR / "outline.png").convert("L")) > 127
-    _petal_asset_cache = (masks, outline)
-    return _petal_asset_cache
+def _load_petal_frame(frame_index: int) -> np.ndarray:
+    """RGBA overlay from gear_1/frame_0001.jpg … frame_0018.jpg (1-based assets)."""
+    global _petal_frame_cache
+    if _petal_frame_cache is None:
+        _petal_frame_cache = {}
+    if frame_index not in _petal_frame_cache:
+        path = PETAL_FRAMES_DIR / f"frame_{frame_index + 1:02d}.png"
+        _petal_frame_cache[frame_index] = (
+            np.asarray(Image.open(path)).astype(np.float32) / 255.0
+        )
+    return _petal_frame_cache[frame_index]
 
 
 def _draw_petal_flower(
@@ -97,36 +103,18 @@ def _draw_petal_flower(
     center: tuple[float, float],
     radius: float,
     *,
-    fill_color: str,
-    filled_indices: frozenset[int],
+    petal_elapsed: float = 0.0,
     show_labels: bool = False,
 ) -> None:
-    """Six-petal flower overlay for Gear 1 (no hand / slice fill)."""
+    """Gear 1 flower overlay from the 18-frame gear_1 sequence."""
     cx, cy = center
-    masks, outline = _load_petal_assets()
-    size = masks[0].shape[0]
-    rgba = np.zeros((size, size, 4), dtype=np.float32)
-    fill_rgba = np.array(mcolors.to_rgba(fill_color, alpha=0.92), dtype=np.float32)
-    for i in range(PETAL_COUNT):
-        if i in filled_indices:
-            rgba[masks[i]] = fill_rgba
-
+    rgba = _load_petal_frame(petal_frame_index(petal_elapsed))
     extent = (cx - radius, cx + radius, cy - radius, cy + radius)
     ax.imshow(
         rgba,
         extent=extent,
         origin="lower",
         interpolation="bilinear",
-        zorder=3,
-    )
-
-    outline_rgba = np.zeros((size, size, 4), dtype=np.float32)
-    outline_rgba[outline] = mcolors.to_rgba(OUTLINE_COLOR, alpha=1.0)
-    ax.imshow(
-        outline_rgba,
-        extent=extent,
-        origin="lower",
-        interpolation="nearest",
         zorder=4,
     )
 
@@ -330,8 +318,7 @@ def _draw_gear_circle(
             ax,
             (cx, cy),
             radius,
-            fill_color=petal_color_for_elapsed(petal_elapsed),
-            filled_indices=petal_filled_indices(petal_elapsed),
+            petal_elapsed=petal_elapsed,
             show_labels=petal_show_labels,
         )
     v = k / math.pi

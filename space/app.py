@@ -14,11 +14,9 @@ from universal_clock.clock import EARTH_DAY_SECONDS
 from universal_clock.visualize import (
     DEFAULT_SLICE_LINES,
     PETAL_CYCLE_SECONDS,
-    PETAL_LETTERS,
     PETAL_SEGMENT_SECONDS,
     petal_color_gear,
     petal_frame_index,
-    petal_filled_indices,
 )
 
 import gradio as gr
@@ -37,7 +35,7 @@ DEMO_SCENES: dict[str, tuple[int, str]] = {
 PETAL_SCENE = "Petal · 60s"
 DEMO_SCENES[PETAL_SCENE] = (
     -1,
-    "60s loop: G1 flower frames A+D / B+E / C+F (3.33s each); color G2→G7 every 10s.",
+    "60s loop: 18 gear_1 frames (3 per 10s segment); color G2→G7.",
 )
 # cpu-basic: avoid 10 renders/s; frame index still advances at 3.33s boundaries.
 PETAL_RENDER_INTERVAL = 0.33
@@ -60,12 +58,9 @@ def _format_state(
         seg = int(t // PETAL_SEGMENT_SECONDS)
         g = petal_color_gear(t)
         frame = petal_frame_index(t) + 1
-        filled = "".join(
-            PETAL_LETTERS[i] for i in sorted(petal_filled_indices(t))
-        )
         lines.append(
             f"Petal: {t:4.1f}s / {PETAL_CYCLE_SECONDS}s  "
-            f"·  frame {frame:02d} ({filled})  ·  color=G{g}  "
+            f"·  frame {frame:02d}/18  ·  color=G{g}  "
             f"·  {seg * 10}–{(seg + 1) * 10}s"
         )
         lines.append("")
