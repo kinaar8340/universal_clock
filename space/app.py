@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
+import os
 import time
+
+# HF enables SSR by default; it spawns a Node proxy and triggers asyncio
+# teardown warnings (Invalid file descriptor: -1) on cpu-basic. Disable early.
+os.environ.setdefault("GRADIO_SSR_MODE", "False")
 
 import matplotlib
 
@@ -701,6 +706,8 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
 
 # HF Spaces imports this module and looks for a top-level `demo` object.
 demo = build_demo()
+# Serialize blocking matplotlib renders (timers + load) on cpu-basic.
+demo.queue(default_concurrency_limit=1)
 
 if __name__ == "__main__":
-    demo.launch(theme=THEME, css=CUSTOM_CSS)
+    demo.launch(theme=THEME, css=CUSTOM_CSS, ssr_mode=False)
