@@ -481,7 +481,7 @@ footer, .footer {{
 
 
 def build_demo() -> gr.Blocks:
-    with gr.Blocks(title="Universal π Clock", theme=THEME, css=CUSTOM_CSS) as demo:
+    with gr.Blocks(title="Universal π Clock") as demo:
         gr.Markdown(
             f"""
 # Universal π Clock · Egg of Life
@@ -681,4 +681,4 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
 demo = build_demo()
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(theme=THEME, css=CUSTOM_CSS)
