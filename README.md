@@ -2,6 +2,12 @@
 
 A seven-gear cascading clock based on the **Egg of Life** sacred-geometry pattern (one central circle + six surrounding circles). Each gear tracks position on a 350-slice circumference labeled **k/π**, with carry-over to the next higher gear at full revolution.
 
+## Preview
+
+![Universal π Clock](bg1_universal_clock.jpg)
+
+Background art: [commit a21316a](https://github.com/kinaar8340/universal_clock/commit/a21316a4c2a858a6f5fcb81ddbf8fda608291276)
+
 ## Layout
 
 | Gear | Position | Color |
