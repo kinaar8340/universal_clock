@@ -350,8 +350,35 @@ def draw_clock(
     petal_overlay: bool = False,
     petal_elapsed: float = 0.0,
     petal_show_labels: bool = False,
+    style: str = "egg_of_life",
+    theme: str = "dark",
+    layout: str = "portrait",
+    growth: float = 1.0,
 ) -> None:
-    """Draw the Egg of Life clock face onto an existing axes."""
+    """Draw a clock face onto an existing axes.
+
+    ``style`` selects the visual metaphor:
+    ``egg_of_life`` | ``golden_spiral`` | ``spiral_arms`` | ``hybrid``.
+    """
+    style = (style or "egg_of_life").lower().replace("-", "_")
+    if style != "egg_of_life":
+        from .spiral import draw_styled_clock
+
+        draw_styled_clock(
+            ax,
+            clock,
+            style=style,
+            theme=theme,
+            layout=layout,
+            show_ticks=show_ticks,
+            show_labels=show_labels,
+            show_hands=show_hands,
+            slice_lines=slice_lines,
+            title=title,
+            growth=growth,
+        )
+        return
+
     centers = egg_of_life_positions(circle_radius)
     span = circle_radius * (viewport_span if viewport_span is not None else 3.6)
 
@@ -392,12 +419,42 @@ def draw_clock(
         ax.set_title(title, color=TEXT_COLOR, fontsize=11, pad=16)
 
 
+def _default_figsize(
+    style: str,
+    layout: str,
+    figsize: tuple[float, float] | None,
+) -> tuple[float, float]:
+    if figsize is not None:
+        return figsize
+    style = (style or "egg_of_life").lower().replace("-", "_")
+    if style == "golden_spiral":
+        from .spiral import _figsize_for_layout
+
+        return _figsize_for_layout(layout)
+    if style == "spiral_arms":
+        return (11.0, 11.0)
+    if style == "hybrid":
+        return (12.0, 12.0)
+    return (12.0, 12.0)
+
+
+def _bg_for_theme(theme: str, style: str) -> str:
+    style = (style or "egg_of_life").lower().replace("-", "_")
+    if style == "egg_of_life":
+        return BG_COLOR
+    if theme == "light":
+        from .spiral import LIGHT_BG
+
+        return LIGHT_BG
+    return BG_COLOR
+
+
 def render_clock(
     clock: UniversalPiClock,
     *,
     output: Path | str | None = None,
     dpi: int = 200,
-    figsize: tuple[float, float] = (12, 12),
+    figsize: tuple[float, float] | None = None,
     circle_radius: float = 1.0,
     show_ticks: bool = True,
     show_labels: bool = True,
@@ -410,9 +467,19 @@ def render_clock(
     petal_overlay: bool = False,
     petal_elapsed: float = 0.0,
     petal_show_labels: bool = False,
+    style: str = "egg_of_life",
+    theme: str = "dark",
+    layout: str = "portrait",
+    growth: float = 1.0,
 ) -> plt.Figure:
-    """Render the Egg of Life clock face for the current clock state."""
-    fig, ax = plt.subplots(figsize=figsize, facecolor=BG_COLOR)
+    """Render the clock face for the current clock state.
+
+    Supports Egg of Life and golden-spiral visual styles (see ``style``).
+    """
+    style = (style or "egg_of_life").lower().replace("-", "_")
+    fig_size = _default_figsize(style, layout, figsize)
+    bg = _bg_for_theme(theme, style)
+    fig, ax = plt.subplots(figsize=fig_size, facecolor=bg)
     draw_clock(
         ax,
         clock,
@@ -427,13 +494,17 @@ def render_clock(
         petal_overlay=petal_overlay,
         petal_elapsed=petal_elapsed,
         petal_show_labels=petal_show_labels,
+        style=style,
+        theme=theme,
+        layout=layout,
+        growth=growth,
     )
     if tight_margins:
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
     else:
         fig.tight_layout()
     if output is not None:
-        fig.savefig(output, dpi=dpi, facecolor=BG_COLOR, bbox_inches="tight")
+        fig.savefig(output, dpi=dpi, facecolor=bg, bbox_inches="tight")
     return fig
 
 
@@ -441,7 +512,7 @@ def render_clock_array(
     clock: UniversalPiClock,
     *,
     dpi: int = 120,
-    figsize: tuple[float, float] = (10, 10),
+    figsize: tuple[float, float] | None = None,
     circle_radius: float = 1.0,
     show_ticks: bool = True,
     show_labels: bool = True,
@@ -454,6 +525,10 @@ def render_clock_array(
     petal_overlay: bool = False,
     petal_elapsed: float = 0.0,
     petal_show_labels: bool = False,
+    style: str = "egg_of_life",
+    theme: str = "dark",
+    layout: str = "portrait",
+    growth: float = 1.0,
 ) -> np.ndarray:
     """Render the clock to an RGB numpy array for Gradio / web display."""
     fig = render_clock(
@@ -472,6 +547,10 @@ def render_clock_array(
         petal_overlay=petal_overlay,
         petal_elapsed=petal_elapsed,
         petal_show_labels=petal_show_labels,
+        style=style,
+        theme=theme,
+        layout=layout,
+        growth=growth,
     )
     fig.canvas.draw()
     rgba = np.asarray(fig.canvas.buffer_rgba())

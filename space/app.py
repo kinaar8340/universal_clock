@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 
 from universal_clock import UniversalPiClock, render_clock_array
 from universal_clock.clock import EARTH_DAY_SECONDS, SLICES_PER_GEAR
+from universal_clock.spiral import LAYOUTS, VISUAL_STYLES
 from universal_clock.visualize import (
     DEFAULT_SLICE_LINES,
     PETAL_CYCLE_SECONDS,
@@ -30,6 +31,12 @@ GITHUB_URL = "https://github.com/kinaar8340/universal_clock"
 HF_SPACE_URL = "https://huggingface.co/spaces/kinaar111/universal_clock"
 
 SLICE_LINE_CHOICES = [10, 35, 70, 175, 350]
+STYLE_CHOICES = list(VISUAL_STYLES)
+THEME_CHOICES = ["dark", "light"]
+LAYOUT_CHOICES = list(LAYOUTS)
+DEFAULT_STYLE = "egg_of_life"
+DEFAULT_THEME = "dark"
+DEFAULT_LAYOUT = "portrait"
 # Named demo scenes — each loads a fresh clock at the given tick count
 DEMO_SCENES: dict[str, tuple[int, str]] = {
     "Start": (0, "All seven gears at k=1 — the origin."),
@@ -85,6 +92,19 @@ def _format_state(
     return "\n".join(lines)
 
 
+def _figsize_for_style(style: str, layout: str) -> tuple[float, float]:
+    style = (style or DEFAULT_STYLE).lower().replace("-", "_")
+    if style == "golden_spiral" and layout == "portrait":
+        return (7.0, 11.0)
+    if style == "golden_spiral" and layout == "landscape":
+        return (12.0, 7.0)
+    if style == "spiral_arms":
+        return (10.0, 10.0)
+    if style == "hybrid":
+        return (10.0, 10.0)
+    return (10.0, 10.0)
+
+
 def _render(
     clock: UniversalPiClock,
     *,
@@ -92,35 +112,56 @@ def _render(
     show_hands: bool,
     show_labels: bool,
     show_ticks: bool,
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
     petal_elapsed: float | None = None,
 ) -> tuple:
+    # Petal overlay is Egg-of-Life-only; fall back for spiral styles.
+    use_petal = petal_elapsed is not None and style == "egg_of_life"
     image = render_clock_array(
         clock,
-        figsize=(10, 10),
+        figsize=_figsize_for_style(style, layout),
         dpi=RENDER_DPI,
         show_ticks=show_ticks,
         show_labels=show_labels,
         show_hands=show_hands,
         slice_lines=slice_lines,
         title="",
-        viewport_span=CLOCK_VIEWPORT_SPAN,
+        viewport_span=CLOCK_VIEWPORT_SPAN if style == "egg_of_life" else None,
         tight_margins=True,
-        petal_overlay=petal_elapsed is not None,
+        petal_overlay=use_petal,
         petal_elapsed=petal_elapsed or 0.0,
         petal_show_labels=False,
+        style=style,
+        theme=theme,
+        layout=layout,
+        growth=growth,
     )
-    return image, _format_state(clock, petal_elapsed=petal_elapsed)
+    return image, _format_state(
+        clock,
+        petal_elapsed=petal_elapsed if use_petal else None,
+    )
 
 
 def _display_kwargs(
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> dict:
     return {
         "slice_lines": slice_lines,
         "show_hands": "hands" in overlays,
         "show_labels": "labels" in overlays,
         "show_ticks": "ticks" in overlays,
+        "style": style,
+        "theme": theme,
+        "layout": layout,
+        "growth": float(growth),
     }
 
 
@@ -132,13 +173,20 @@ def load_demo_scene(
     scene: str,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     """Load a named demo from scratch (static scenes only)."""
     clock = _new_clock()
     ticks, _ = DEMO_SCENES.get(scene, (0, ""))
     if ticks > 0:
         clock.fast_forward(ticks)
-    return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+    return clock, *_render(
+        clock,
+        **_display_kwargs(slice_lines, overlays, style, theme, layout, growth),
+    )
 
 
 _petal_last_visual_key: tuple | None = None
@@ -152,18 +200,28 @@ def _reset_petal_visual_cache() -> None:
 def start_petal_sequence(
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     """Reset and begin the 60s petal loop (1 tick/s, flower frames, color G2→G7)."""
     global _petal_last_visual_key
     _reset_petal_visual_cache()
     clock = _new_clock()
     elapsed = 0.0
-    display = _display_kwargs(slice_lines, overlays)
+    # Petal sequence forces Egg of Life visuals
+    display = _display_kwargs(
+        slice_lines, overlays, "egg_of_life", theme, layout, growth
+    )
     image, state = _render(clock, **display, petal_elapsed=elapsed)
     _petal_last_visual_key = (
         petal_frame_index(elapsed),
         slice_lines,
         tuple(overlays),
+        "egg_of_life",
+        theme,
+        layout,
     )
     return clock, True, time.time(), image, state
 
@@ -174,17 +232,24 @@ def petal_sequence_tick(
     epoch: float,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     global _petal_last_visual_key
     if clock is None:
         clock = _new_clock()
+    display = _display_kwargs(
+        slice_lines, overlays, "egg_of_life", theme, layout, growth
+    )
     if not running:
         _reset_petal_visual_cache()
         return (
             clock,
             running,
             epoch,
-            *_render(clock, **_display_kwargs(slice_lines, overlays)),
+            *_render(clock, **display),
         )
     elapsed = (time.time() - epoch) % PETAL_CYCLE_SECONDS
     # One full 350/π revolution on G1 over 60s (matches gear1_60s_sequence.mp4).
@@ -196,12 +261,14 @@ def petal_sequence_tick(
         clock = _new_clock()
     elif target_ticks > clock.total_ticks:
         clock.tick(target_ticks - clock.total_ticks)
-    display = _display_kwargs(slice_lines, overlays)
     state = _format_state(clock, petal_elapsed=elapsed)
     visual_key = (
         petal_frame_index(elapsed),
         slice_lines,
         tuple(overlays),
+        "egg_of_life",
+        theme,
+        layout,
     )
     if visual_key == _petal_last_visual_key:
         return clock, running, epoch, gr.skip(), state
@@ -223,20 +290,34 @@ def step_clock(
     step: int,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     if clock is None:
         clock = _new_clock()
     if step > 0:
         clock.tick(step)
-    return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+    return clock, *_render(
+        clock,
+        **_display_kwargs(slice_lines, overlays, style, theme, layout, growth),
+    )
 
 
 def reset_clock(
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     clock = _new_clock()
-    return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+    return clock, *_render(
+        clock,
+        **_display_kwargs(slice_lines, overlays, style, theme, layout, growth),
+    )
 
 
 def enable_realtime(
@@ -245,6 +326,10 @@ def enable_realtime(
     speed: float,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     if clock is None:
         clock = _new_clock()
@@ -253,7 +338,10 @@ def enable_realtime(
         clock,
         True,
         speed,
-        *_render(clock, **_display_kwargs(slice_lines, overlays)),
+        *_render(
+            clock,
+            **_display_kwargs(slice_lines, overlays, style, theme, layout, growth),
+        ),
     )
 
 
@@ -261,6 +349,10 @@ def disable_realtime(
     clock: UniversalPiClock | None,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     if clock is None:
         clock = _new_clock()
@@ -268,7 +360,10 @@ def disable_realtime(
         clock,
         False,
         1.0,
-        *_render(clock, **_display_kwargs(slice_lines, overlays)),
+        *_render(
+            clock,
+            **_display_kwargs(slice_lines, overlays, style, theme, layout, growth),
+        ),
     )
 
 
@@ -278,18 +373,32 @@ def realtime_tick(
     speed: float,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
 ) -> tuple:
     if clock is None:
         clock = _new_clock()
     if running and clock.tick_interval is not None:
         clock.tick_realtime(speed_multiplier=max(speed, 0.001))
-    return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+    g = float(growth)
+    if style == "hybrid" and clock.gears[0] == 1 and clock.total_ticks > 0:
+        g = g * (1.0 + 0.06 * min(clock.gears[1] - 1, 10))
+    return clock, *_render(
+        clock,
+        **_display_kwargs(slice_lines, overlays, style, theme, layout, g),
+    )
 
 
 def refresh_view(
     clock: UniversalPiClock | None,
     slice_lines: int,
     overlays: list[str],
+    style: str = DEFAULT_STYLE,
+    theme: str = DEFAULT_THEME,
+    layout: str = DEFAULT_LAYOUT,
+    growth: float = 1.0,
     petal_running: bool = False,
     petal_epoch: float = 0.0,
 ) -> tuple:
@@ -299,10 +408,15 @@ def refresh_view(
         elapsed = (time.time() - petal_epoch) % PETAL_CYCLE_SECONDS
         return clock, *_render(
             clock,
-            **_display_kwargs(slice_lines, overlays),
+            **_display_kwargs(
+                slice_lines, overlays, "egg_of_life", theme, layout, growth
+            ),
             petal_elapsed=elapsed,
         )
-    return clock, *_render(clock, **_display_kwargs(slice_lines, overlays))
+    return clock, *_render(
+        clock,
+        **_display_kwargs(slice_lines, overlays, style, theme, layout, growth),
+    )
 
 
 def _timers_for_scene(scene: str) -> tuple:
@@ -503,7 +617,7 @@ def build_demo() -> gr.Blocks:
     with gr.Blocks(title="Universal π Clock") as demo:
         gr.Markdown(
             f"""
-# Universal π Clock · Egg of Life
+# Universal π Clock · Egg of Life & Golden Spiral
 Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_URL})
             """,
             elem_id="app-header",
@@ -531,6 +645,28 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
                     reload_demo_btn = gr.Button("Load scene", variant="primary", size="sm")
 
                     gr.Markdown("**2 · View**", elem_classes=["section-header"])
+                    visual_style = gr.Dropdown(
+                        choices=STYLE_CHOICES,
+                        value=DEFAULT_STYLE,
+                        label="Visual style",
+                    )
+                    theme = gr.Dropdown(
+                        choices=THEME_CHOICES,
+                        value=DEFAULT_THEME,
+                        label="Theme",
+                    )
+                    layout = gr.Dropdown(
+                        choices=LAYOUT_CHOICES,
+                        value=DEFAULT_LAYOUT,
+                        label="Layout (golden spiral)",
+                    )
+                    growth = gr.Slider(
+                        minimum=0.5,
+                        maximum=1.5,
+                        value=1.0,
+                        step=0.05,
+                        label="Spiral growth (hybrid)",
+                    )
                     slice_lines = gr.Dropdown(
                         choices=SLICE_LINE_CHOICES,
                         value=DEFAULT_SLICE_LINES,
@@ -599,7 +735,7 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
         earth_timer = gr.Timer(0.15, active=False)
         petal_timer = gr.Timer(PETAL_RENDER_INTERVAL, active=False)
 
-        display_inputs = [slice_lines, overlays]
+        display_inputs = [slice_lines, overlays, visual_style, theme, layout, growth]
         outputs = [clock_state, clock_image, state_text]
         rt_outputs = [clock_state, realtime_running, speed, clock_image, state_text]
         petal_outputs = [clock_state, petal_running, petal_epoch, clock_image, state_text]
@@ -670,10 +806,15 @@ Seven-gear cascading π clock — [GitHub]({GITHUB_URL}) · [Space]({HF_SPACE_UR
             outputs=rt_outputs,
         ).then(lambda: gr.Timer(active=False), outputs=earth_timer)
 
-        for control in (slice_lines, overlays):
+        for control in (slice_lines, overlays, visual_style, theme, layout, growth):
             control.change(
                 refresh_view,
-                inputs=[clock_state, *display_inputs, petal_running, petal_epoch],
+                inputs=[
+                    clock_state,
+                    *display_inputs,
+                    petal_running,
+                    petal_epoch,
+                ],
                 outputs=view_outputs,
             )
 

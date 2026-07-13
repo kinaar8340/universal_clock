@@ -1,6 +1,8 @@
 # Universal π Clock
 
-A seven-gear cascading clock based on the **Egg of Life** sacred-geometry pattern (one central circle + six surrounding circles). Each gear tracks position on a 350-slice circumference labeled **k/π**, with carry-over to the next higher gear at full revolution.
+A seven-gear cascading clock based on the **Egg of Life** sacred-geometry pattern (one central circle + six surrounding circles), with optional **golden / Fibonacci spiral** faces inspired by logarithmic-spiral clock design.
+
+Each gear tracks position on a 350-slice circumference labeled **k/π**, with carry-over to the next higher gear at full revolution.
 
 ## Preview
 
@@ -8,7 +10,26 @@ A seven-gear cascading clock based on the **Egg of Life** sacred-geometry patter
 
 Background art: [commit a21316a](https://github.com/kinaar8340/universal_clock/commit/a21316a4c2a858a6f5fcb81ddbf8fda608291276)
 
-## Layout
+### Visual styles
+
+| Style | Metaphor |
+|-------|----------|
+| `egg_of_life` | Classic nested circles (default) |
+| `golden_spiral` | Portrait card + log spiral hand (Gear 1) + coarser gear markers |
+| `spiral_arms` | Seven φ-scaled spiral arms expanding outward |
+| `hybrid` | Egg of Life center with spiral growth outward |
+
+Golden spiral math (Matplotlib-friendly):
+
+```text
+φ = (1 + √5) / 2
+b = ln(φ) / (π/2)
+r = a · exp(b · θ)
+```
+
+Each of the 350 slices maps to an angle along the spiral; the spiral curve is the primary face, with ticks/labels along the path and a radial dial for Gear 1.
+
+## Layout (Egg of Life)
 
 | Gear | Position | Color |
 |------|----------|-------|
@@ -29,7 +50,7 @@ Background art: [commit a21316a](https://github.com/kinaar8340/universal_clock/c
 
 **https://huggingface.co/spaces/kinaar111/universal_clock**
 
-Interactive Gradio app: batch advance, real-time Earth-rate mode, adjustable speed, slice lines, and hand indicators.
+Interactive Gradio app: style selector (Egg / Golden Spiral / Arms / Hybrid), theme, layout, batch advance, real-time Earth-rate mode, adjustable speed, slice lines, and hand indicators.
 
 Deploy updates:
 
@@ -83,13 +104,19 @@ pip install -r requirements.txt
 ### Batch mode (instant PoC)
 
 ```bash
-# Default: 5,000 ticks → G1=101, G2=15, G3–G7=1
+# Default: 5,000 ticks → G1=101, G2=15, G3–G7=1  (Egg of Life)
 python main.py
 
-# Custom tick count
-python main.py --ticks 50000
+# Golden spiral (portrait card, light theme — THEMATHFLOW-inspired)
+python main.py --style golden_spiral --theme light --layout portrait
 
-# Output path
+# Successive spiral arms
+python main.py --style spiral_arms --ticks 50000
+
+# Hybrid: Egg of Life + outward spiral
+python main.py --style hybrid --growth 1.1
+
+# Custom tick count / output
 python main.py --ticks 10000 --output output/advanced.png
 ```
 
@@ -99,11 +126,11 @@ python main.py --ticks 10000 --output output/advanced.png
 # True Earth rate (Gear 1 revolution = 86,400 s — one mean solar day)
 python main.py --earth-rate
 
-# Accelerated: watch carry propagate in seconds
-python main.py --earth-rate --speed 1000
+# Accelerated spiral face
+python main.py --earth-rate --speed 1000 --style golden_spiral --theme dark
 
 # Another planet: set Gear 1 revolution period in seconds
-python main.py --earth-rate --rev-seconds 88775 --speed 500
+python main.py --earth-rate --rev-seconds 88775 --speed 500 --style hybrid
 ```
 
 Close the plot window or press **Ctrl+C** to stop real-time mode.
@@ -112,25 +139,35 @@ Close the plot window or press **Ctrl+C** to stop real-time mode.
 
 ```bash
 python main.py --ticks 10000 --animate 60
+python main.py --style golden_spiral --theme light --ticks 8000 --animate 36
 ```
 
-Produces `output/egg_of_life_clock.gif` alongside the PNG.
+Produces a GIF alongside the PNG.
 
 ## Python API
 
 ```python
-from universal_clock import UniversalPiClock, render_clock
+from universal_clock import UniversalPiClock, render_clock, PHI, B_GOLDEN
 from universal_clock.realtime import run_realtime
 
-# Batch
+# Batch — Egg of Life
 clock = UniversalPiClock()
 clock.fast_forward(5000)
 render_clock(clock, output="output/state.png")
 
+# Golden spiral portrait card
+render_clock(
+    clock,
+    style="golden_spiral",
+    theme="light",
+    layout="portrait",
+    output="output/spiral.png",
+)
+
 # Real-time Earth (1000× speed for demo)
 clock = UniversalPiClock()
 clock.set_earth_rate(86400)
-run_realtime(clock, speed_multiplier=1000)
+run_realtime(clock, speed_multiplier=1000, style="spiral_arms")
 ```
 
 ### Manual real-time loop
@@ -144,7 +181,7 @@ clock.set_earth_rate(86400)
 
 while True:
     if clock.tick_realtime(speed_multiplier=1000):
-        render_clock(clock, output="output/live.png")
+        render_clock(clock, output="output/live.png", style="hybrid")
     time.sleep(0.01)
 ```
 
@@ -156,12 +193,16 @@ while True:
 | `--earth-rate` | Real-time mode tied to wall clock |
 | `--speed N` | Speed multiplier for real-time (default 1) |
 | `--rev-seconds N` | Gear 1 full-revolution period (default 86400) |
+| `--style` | `egg_of_life` \| `golden_spiral` \| `spiral_arms` \| `hybrid` |
+| `--theme` | `dark` \| `light` (spiral styles) |
+| `--layout` | `portrait` \| `landscape` \| `square` (`golden_spiral`) |
+| `--growth N` | Spiral scale factor for `hybrid` (default 1.0) |
 | `--output PATH` | PNG output path (batch mode) |
 | `--animate N` | Save GIF with N frames (batch mode) |
 | `--no-hands` | Hide hand indicators |
-| `--no-ticks` | Hide radial slice lines |
-| `--slice-lines N` | Radial lines per circle (default 70; must divide 350) |
-| `--no-labels` | Hide k/π circumference labels |
+| `--no-ticks` | Hide radial / spiral slice lines |
+| `--slice-lines N` | Lines per face (default 70; must divide 350) |
+| `--no-labels` | Hide k/π labels |
 
 ## Project structure
 
@@ -169,13 +210,22 @@ while True:
 universal_clock/
 ├── universal_clock/
 │   ├── clock.py       # UniversalPiClock logic + real-time ticking
-│   ├── visualize.py   # Egg of Life renderer + hand indicators
+│   ├── visualize.py   # Egg of Life renderer + style dispatch
+│   ├── spiral.py      # Golden spiral math + spiral / hybrid faces
 │   ├── realtime.py    # Interactive matplotlib loop
 │   └── animate.py     # GIF export
 ├── main.py            # CLI entry point
 ├── tests/
 └── output/            # Generated images (gitignored)
 ```
+
+## Design notes
+
+- **7-gear cascade** is unchanged; only rendering varies by style.
+- **Readability:** spiral styles use layered opacity, per-gear color coding, and (on `golden_spiral`) vertical value stacks. Toggle labels/ticks when dense.
+- **Portrait vs landscape:** `--layout` / Gradio layout control; video reference is portrait.
+- **Performance:** spiral polylines are still fast in Matplotlib for real-time and GIF export.
+- **Hybrid growth:** optional `growth` factor and a gentle pulse on carry for “alive” expansion.
 
 ## Scaling to other worlds
 

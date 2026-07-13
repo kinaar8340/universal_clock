@@ -121,3 +121,52 @@ def test_tick_realtime_speed_multiplier():
     t0 = time.time()
     clock.last_tick_time = t0 - 1.0
     assert clock.tick_realtime(speed_multiplier=100.0) is True
+
+def test_spiral_math():
+    from universal_clock.spiral import (
+        B_GOLDEN,
+        PHI,
+        spiral_radius,
+        spiral_xy,
+        theta_for_slice,
+    )
+    import math
+
+    assert abs(PHI - (1 + math.sqrt(5)) / 2) < 1e-12
+    assert abs(B_GOLDEN - math.log(PHI) / (math.pi / 2)) < 1e-12
+    assert theta_for_slice(1) == 0.0
+    th_end = theta_for_slice(350)
+    assert abs(th_end - 2.0 * 2 * math.pi) < 1e-9
+    # r grows by φ every quarter-turn (π/2)
+    r0 = float(spiral_radius(0.0, a=1.0))
+    r_quarter = float(spiral_radius(math.pi / 2, a=1.0))
+    assert abs(r_quarter / r0 - PHI) < 1e-9
+    x, y = spiral_xy(0.0, a=1.0)
+    assert abs(float(x) - 0.0) < 1e-9
+    assert abs(float(y) - 1.0) < 1e-9  # 12 o'clock
+
+
+def test_render_styles_smoke():
+    """Each visual style renders without error and produces a non-empty array."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from universal_clock import UniversalPiClock, render_clock_array
+    from universal_clock.spiral import VISUAL_STYLES
+
+    clock = UniversalPiClock()
+    clock.fast_forward(5000)
+    for style in VISUAL_STYLES:
+        arr = render_clock_array(
+            clock,
+            style=style,
+            theme="dark",
+            layout="portrait",
+            dpi=40,
+            figsize=(4, 4) if style != "golden_spiral" else (3, 5),
+            show_labels=False,
+            title="",
+        )
+        assert arr.ndim == 3
+        assert arr.shape[2] == 3
+        assert arr.shape[0] > 10 and arr.shape[1] > 10
